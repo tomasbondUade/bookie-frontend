@@ -1,0 +1,63 @@
+name: Owner approval
+
+on:
+  pull_request_target:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+  pull_request_review:
+    branches:
+      - main
+    types:
+      - submitted
+      - edited
+      - dismissed
+
+permissions:
+  pull-requests: read
+
+concurrency:
+  group: owner-approval-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  approval:
+    name: Require Tomas approval
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event.pull_request.draft != true
+    steps:
+      - name: Check approval for the current commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$PR_AUTHOR" == "tomasbondUade" ]]; then
+            echo "The repository owner may merge their own pull request."
+            exit 0
+          fi
+
+          latest_review_state="$(gh api --paginate \
+            "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews" \
+            | jq -s --arg owner "tomasbondUade" --arg head "$PR_HEAD_SHA" '
+                add
+                | map(select(.user.login == $owner and .commit_id == $head))
+                | sort_by(.submitted_at // "")
+                | last
+                | .state // ""
+              ')"
+
+          if [[ "$latest_review_state" != "APPROVED" ]]; then
+            echo "A current-commit approval from tomasbondUade is required."
+            exit 1
+          fi
+
+          echo "Tomas approved the current pull request commit."
