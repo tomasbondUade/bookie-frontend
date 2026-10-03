@@ -25,3 +25,26 @@ The `shared` module currently configures these Kotlin source sets:
 | `iosTest` | Tests for the iOS target. |
 
 Configured targets are Android (minimum SDK 24, compile/target SDK 36), iOS device (`iosArm64`), and iOS simulator (`iosSimulatorArm64`, deployment target 18.2). The iOS simulator target currently supports Apple Silicon; an Intel simulator target is not configured.
+
+## Requirements
+
+- JDK 21. The Gradle daemon JVM toolchain is configured in `gradle/gradle-daemon-jvm.properties`.
+- Android SDK 36 for Android builds.
+- macOS with Xcode for building and running the iOS app. The project uses an iOS 18.2 deployment target.
+
+## Build and test
+
+From the repository root, build the Android debug app and run shared-module tests on the local JVM:
+
+```bash
+./gradlew :androidApp:assembleDebug
+./gradlew :shared:testAndroidHostTest
+```
+
+On macOS, open `iosApp/iosApp.xcodeproj` in Xcode, select the `iosApp` scheme and an iOS simulator or device, then run the app. Shared tests for the configured iOS simulator target can be run with:
+
+```bash
+./gradlew :shared:iosSimulatorArm64Test
+```
+
+The iOS Xcode build and simulator tests require macOS. The iOS simulator target configured by Gradle is `iosSimulatorArm64`.
