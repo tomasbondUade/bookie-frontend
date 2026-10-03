@@ -48,3 +48,11 @@ On macOS, open `iosApp/iosApp.xcodeproj` in Xcode, select the `iosApp` scheme an
 ```
 
 The iOS Xcode build and simulator tests require macOS. The iOS simulator target configured by Gradle is `iosSimulatorArm64`.
+
+## Contribution conventions
+
+- Keep Kotlin packages under the base package `org.bookie.app`. Use lowercase, dot-separated package names that match the source directory.
+- Put code that does not depend on a platform API in `commonMain`; keep Android and Apple APIs in `androidMain` and `iosMain`, respectively.
+- Name work branches with the issue number and a short kebab-case description, for example `codex/1-kmp-base`. Keep changes on a branch and open a Pull Request targeting `main`.
+- Use Conventional Commit style messages with a short scope when useful, for example `docs: document KMP targets` or `fix(library): handle empty state`.
+- Keep this README focused on setup and repository conventions. Detailed feature architecture and package decomposition are tracked separately in issues #2, #13, and #15.
