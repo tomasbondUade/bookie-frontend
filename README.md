@@ -1,31 +1,27 @@
-This is a Kotlin Multiplatform project targeting Android, iOS.
+# Bookie Mobile
 
-* [/iosApp](./iosApp/iosApp) contains an iOS application. Even if you’re sharing your UI with Compose Multiplatform,
-  you need this entry point for your iOS app. This is also where you should add SwiftUI code for your project.
+Bookie Mobile is a Kotlin Multiplatform app targeting Android and iOS. The shared module uses Compose Multiplatform for UI that can run on both platforms.
 
-* [/shared](./shared/src) is for code that will be shared across your Compose Multiplatform applications.
-  It contains several subfolders:
-  - [commonMain](./shared/src/commonMain/kotlin) is for code that’s common for all targets.
-  - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
-    For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
-    the [iosMain](./shared/src/iosMain/kotlin) folder would be the right place for such calls.
-    Similarly, if you want to edit the Desktop (JVM) specific part, the [jvmMain](./shared/src/jvmMain/kotlin)
-    folder is the appropriate location.
+## Project layout
 
-### Running the apps
+| Path | Responsibility |
+| --- | --- |
+| `androidApp/` | Android application module and Android entry point. |
+| `iosApp/` | Xcode project and thin SwiftUI host for the shared application. |
+| `shared/` | Shared Kotlin code, Compose UI, platform source sets, and shared tests. |
+| `gradle/libs.versions.toml` | Central version catalog for Gradle plugins and dependencies. |
 
-Use the run configurations provided by the run widget in your IDE's toolbar. You can also use these commands and options:
+## Kotlin source sets and targets
 
-- Android app: `./gradlew :androidApp:assembleDebug`
-- iOS app: open the [/iosApp](./iosApp) directory in Xcode and run it from there.
+The `shared` module currently configures these Kotlin source sets:
 
-### Running tests
+| Source set | Use |
+| --- | --- |
+| `commonMain` | Code compiled for all supported targets, including shared Compose UI. |
+| `androidMain` | Android-specific implementations and APIs. |
+| `iosMain` | iOS-specific implementations and the Compose view-controller entry point. |
+| `commonTest` | Tests that run against shared Kotlin code. |
+| `androidHostTest` | Shared-module tests executed on the local JVM. |
+| `iosTest` | Tests for the iOS target. |
 
-Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
-
-- Android tests: `./gradlew :shared:testAndroidHostTest`
-- iOS tests: `./gradlew :shared:iosSimulatorArm64Test`
-
----
-
-Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html)…
+Configured targets are Android (minimum SDK 24, compile/target SDK 36), iOS device (`iosArm64`), and iOS simulator (`iosSimulatorArm64`, deployment target 18.2). The iOS simulator target currently supports Apple Silicon; an Intel simulator target is not configured.
