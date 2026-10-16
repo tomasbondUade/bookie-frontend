@@ -1,31 +1,58 @@
-This is a Kotlin Multiplatform project targeting Android, iOS.
+# Bookie Mobile
 
-* [/iosApp](./iosApp/iosApp) contains an iOS application. Even if you’re sharing your UI with Compose Multiplatform,
-  you need this entry point for your iOS app. This is also where you should add SwiftUI code for your project.
+Bookie Mobile is a Kotlin Multiplatform app targeting Android and iOS. The shared module uses Compose Multiplatform for UI that can run on both platforms.
 
-* [/shared](./shared/src) is for code that will be shared across your Compose Multiplatform applications.
-  It contains several subfolders:
-  - [commonMain](./shared/src/commonMain/kotlin) is for code that’s common for all targets.
-  - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
-    For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
-    the [iosMain](./shared/src/iosMain/kotlin) folder would be the right place for such calls.
-    Similarly, if you want to edit the Desktop (JVM) specific part, the [jvmMain](./shared/src/jvmMain/kotlin)
-    folder is the appropriate location.
+## Project layout
 
-### Running the apps
+| Path | Responsibility |
+| --- | --- |
+| `androidApp/` | Android application module and Android entry point. |
+| `iosApp/` | Xcode project and thin SwiftUI host for the shared application. |
+| `shared/` | Shared Kotlin code, Compose UI, platform source sets, and shared tests. |
+| `gradle/libs.versions.toml` | Central version catalog for Gradle plugins and dependencies. |
 
-Use the run configurations provided by the run widget in your IDE's toolbar. You can also use these commands and options:
+## Kotlin source sets and targets
 
-- Android app: `./gradlew :androidApp:assembleDebug`
-- iOS app: open the [/iosApp](./iosApp) directory in Xcode and run it from there.
+The `shared` module currently configures these Kotlin source sets:
 
-### Running tests
+| Source set | Use |
+| --- | --- |
+| `commonMain` | Code compiled for all supported targets, including shared Compose UI. |
+| `androidMain` | Android-specific implementations and APIs. |
+| `iosMain` | iOS-specific implementations and the Compose view-controller entry point. |
+| `commonTest` | Tests that run against shared Kotlin code. |
+| `androidHostTest` | Shared-module tests executed on the local JVM. |
+| `iosTest` | Tests for the iOS target. |
 
-Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
+Configured targets are Android (minimum SDK 24, compile/target SDK 36), iOS device (`iosArm64`), and iOS simulator (`iosSimulatorArm64`, deployment target 18.2). The iOS simulator target currently supports Apple Silicon; an Intel simulator target is not configured.
 
-- Android tests: `./gradlew :shared:testAndroidHostTest`
-- iOS tests: `./gradlew :shared:iosSimulatorArm64Test`
+## Requirements
 
----
+- JDK 21. The Gradle daemon JVM toolchain is configured in `gradle/gradle-daemon-jvm.properties`.
+- Android SDK 36 for Android builds.
+- macOS with Xcode for building and running the iOS app. The project uses an iOS 18.2 deployment target.
 
-Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html)…
+## Build and test
+
+From the repository root, build the Android debug app and run shared-module tests on the local JVM:
+
+```bash
+./gradlew :androidApp:assembleDebug
+./gradlew :shared:testAndroidHostTest
+```
+
+On macOS, open `iosApp/iosApp.xcodeproj` in Xcode, select the `iosApp` scheme and an iOS simulator or device, then run the app. Shared tests for the configured iOS simulator target can be run with:
+
+```bash
+./gradlew :shared:iosSimulatorArm64Test
+```
+
+The iOS Xcode build and simulator tests require macOS. The iOS simulator target configured by Gradle is `iosSimulatorArm64`.
+
+## Contribution conventions
+
+- Keep Kotlin packages under the base package `org.bookie.app`. Use lowercase, dot-separated package names that match the source directory.
+- Put code that does not depend on a platform API in `commonMain`; keep Android and Apple APIs in `androidMain` and `iosMain`, respectively.
+- Name work branches with the issue number and a short kebab-case description, for example `codex/1-kmp-base`. Keep changes on a branch and open a Pull Request targeting `main`.
+- Use Conventional Commit style messages with a short scope when useful, for example `docs: document KMP targets` or `fix(library): handle empty state`.
+- Keep this README focused on setup and repository conventions. Detailed feature architecture and package decomposition are tracked separately in issues #2, #13, and #15.
