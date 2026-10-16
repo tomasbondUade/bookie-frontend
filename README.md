@@ -41,6 +41,14 @@ From the repository root, build the Android debug app and run shared-module test
 ./gradlew :shared:testAndroidHostTest
 ```
 
+To install the debug app on a running emulator or connected Android device:
+
+```bash
+./gradlew :androidApp:installDebug
+```
+
+After installation, launch Bookie from the device's app launcher.
+
 On macOS, open `iosApp/iosApp.xcodeproj` in Xcode, select the `iosApp` scheme and an iOS simulator or device, then run the app. Shared tests for the configured iOS simulator target can be run with:
 
 ```bash
