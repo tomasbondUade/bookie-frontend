@@ -63,4 +63,4 @@ The iOS Xcode build and simulator tests require macOS. The iOS simulator target 
 - Put code that does not depend on a platform API in `commonMain`; keep Android and Apple APIs in `androidMain` and `iosMain`, respectively.
 - Name work branches with the issue number and a short kebab-case description, for example `codex/1-kmp-base`. Keep changes on a branch and open a Pull Request targeting `main`.
 - Use Conventional Commit style messages with a short scope when useful, for example `docs: document KMP targets` or `fix(library): handle empty state`.
-- Keep this README focused on setup and repository conventions. Detailed feature architecture and package decomposition are tracked separately in issues #2, #13, and #15.
+- Keep this README focused on setup and repository conventions. See [the architecture guide](docs/architecture.md) for shared layers and package boundaries, and [the testing guide](docs/testing.md) for test scope and validation commands.
