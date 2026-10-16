@@ -45,4 +45,41 @@ jobs:
           ./gradlew --no-daemon --no-build-cache --rerun-tasks --stacktrace
           :androidApp:assembleDebug
       - name: Analyze
+        id: analyze
         uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          output: ${{ runner.temp }}/codeql-results
+      - name: Fail on high or critical security findings
+        env:
+          SARIF_DIR: ${{ steps.analyze.outputs.sarif-output }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "$SARIF_DIR" || ! -d "$SARIF_DIR" ]]; then
+            echo "::error::CodeQL SARIF output directory is missing."
+            exit 1
+          fi
+
+          mapfile -d '' sarif_files < <(find "$SARIF_DIR" -type f -name '*.sarif' -print0)
+          if (( ${#sarif_files[@]} == 0 )); then
+            echo "::error::CodeQL did not produce a SARIF report."
+            exit 1
+          fi
+
+          findings=0
+          for file in "${sarif_files[@]}"; do
+            file_findings="$(jq '[.runs[]? as $run
+              | $run.results[]? as $result
+              | ($run.tool.driver.rules[]?
+                  | select(.id == $result.ruleId)
+                  | .properties["security-severity"] // empty)
+              | select((tonumber? // 0) >= 7.0)] | length' "$file")"
+            findings=$((findings + file_findings))
+          done
+
+          if (( findings > 0 )); then
+            echo "::error::$findings high or critical CodeQL security finding(s) detected (security-severity >= 7.0)."
+            exit 1
+          fi
+
+          echo "No high or critical CodeQL security findings detected."
