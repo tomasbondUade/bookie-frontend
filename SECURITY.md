@@ -10,7 +10,7 @@ Use GitHub's private vulnerability reporting from the repository's **Security** 
 
 | Check | Runs on | Blocking threshold |
 | --- | --- | --- |
-| Secret Scan (Gitleaks) | Every push and pull request | Any detected secret fails the check. Matches are redacted; PR comments and uploaded artifacts are disabled. |
+| Secret Scan (Gitleaks) | Every push and pull request | Any detected secret fails the check. The CLI version and release checksum are pinned; matches are redacted and no PR comments or artifacts are produced. |
 | CodeQL (`security-extended`) | Every push, pull request to `main`, and weekly | High or critical security findings (security severity `>= 7.0`) fail the check. Lower-severity findings still require review and remediation or a documented exception before the change is considered ready. |
 | Dependency Review | Pull requests to `main` | Newly introduced vulnerabilities of moderate severity or higher fail the check. |
 | Android Lint | CI pushes and pull requests to `main` | Lint errors fail CI. This is part of the build workflow, not duplicated in the security workflows. |
