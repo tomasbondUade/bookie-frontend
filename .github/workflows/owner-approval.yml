@@ -47,7 +47,7 @@ jobs:
 
           latest_review_state="$(gh api --paginate \
             "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews" \
-            | jq -s --arg owner "tomasbondUade" --arg head "$PR_HEAD_SHA" '
+            | jq -sr --arg owner "tomasbondUade" --arg head "$PR_HEAD_SHA" '
                 add
                 | map(select(.user.login == $owner and .commit_id == $head))
                 | sort_by(.submitted_at // "")
