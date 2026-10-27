@@ -37,3 +37,11 @@ fun Throwable.toApiError(): ApiError {
         else -> ApiError.Unknown
     }
 }
+
+fun ApiError.toMessage(): String = when (this) {
+    ApiError.Network -> "No se pudo conectar con el servidor."
+    ApiError.Timeout -> "La solicitud tardó demasiado."
+    is ApiError.Http -> "El servidor respondió con HTTP $statusCode."
+    ApiError.Parsing -> "No se pudo interpretar la respuesta del servidor."
+    ApiError.Unknown -> "No se pudo completar la solicitud."
+}
