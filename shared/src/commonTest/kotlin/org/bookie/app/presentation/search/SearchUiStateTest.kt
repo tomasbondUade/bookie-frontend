@@ -3,17 +3,13 @@ package org.bookie.app.presentation.search
 import org.bookie.app.domain.model.Book
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotEquals
-import kotlin.test.assertTrue
 
 class SearchUiStateTest {
     @Test
-    fun emptyResultsAreRepresentedAsSuccessRatherThanIdle() {
-        val state: SearchUiState = SearchUiState.Success(emptyList())
+    fun emptyResultsHaveAnExplicitState() {
+        val state = SearchUiState.Empty("unknown")
 
-        assertNotEquals(SearchUiState.Idle, state)
-        assertTrue(state is SearchUiState.Success)
-        assertTrue(state.books.isEmpty())
+        assertEquals(SearchUiState.Empty("unknown"), state)
     }
 
     @Test
@@ -31,7 +27,7 @@ class SearchUiStateTest {
             buyLink = null,
         )
 
-        val state = SearchUiState.Success(listOf(book))
+        val state = SearchUiState.Success(listOf(book), "ficciones")
 
         assertEquals(listOf(book), state.books)
     }

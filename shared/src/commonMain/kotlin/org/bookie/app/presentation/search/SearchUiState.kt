@@ -7,7 +7,16 @@ sealed interface SearchUiState {
 
     data object Loading : SearchUiState
 
-    data class Success(val books: List<Book>) : SearchUiState
+    data class Success(
+        val books: List<Book>,
+        val query: String = "",
+        val selectedBook: Book? = null,
+    ) : SearchUiState
 
-    data class Error(val message: String) : SearchUiState
+    data class Empty(val query: String) : SearchUiState
+
+    data class Error(
+        val message: String,
+        val query: String = "",
+    ) : SearchUiState
 }
