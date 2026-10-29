@@ -1,6 +1,14 @@
 package org.bookie.app.data.local
 
 import app.cash.sqldelight.db.SqlDriver
+import app.cash.sqldelight.coroutines.asFlow
+import app.cash.sqldelight.coroutines.mapToList
+import app.cash.sqldelight.coroutines.mapToOneOrNull
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
@@ -17,6 +25,36 @@ class SqlDelightLibraryCache(
 ) : LibraryCache {
     private val database = BookieCacheDatabase(driver)
     private val queries = database.libraryCacheQueries
+
+    override fun observePage(
+        accountId: String,
+        page: Int,
+        limit: Int,
+        status: LibraryStatus?,
+        favoritesOnly: Boolean,
+    ): Flow<LibraryPage?> {
+        validate(accountId, page, limit)
+        return queries.observePageChanges(
+            accountId,
+            status?.name.orEmpty(),
+            favoritesOnly.asSqlLong(),
+            page.toLong(),
+            limit.toLong(),
+        ).asFlow()
+            .mapToList(Dispatchers.Default)
+            .map { readPage(accountId, page, limit, status, favoritesOnly) }
+            .distinctUntilChanged()
+            .flowOn(Dispatchers.Default)
+    }
+
+    override fun observeState(accountId: String, stateId: String): Flow<LibraryBookState?> {
+        require(accountId.isNotBlank() && stateId.isNotBlank())
+        return queries.selectState(accountId, stateId).asFlow()
+            .mapToOneOrNull(Dispatchers.Default)
+            .map { it?.toDomain() }
+            .distinctUntilChanged()
+            .flowOn(Dispatchers.Default)
+    }
 
     override suspend fun readPage(
         accountId: String,
