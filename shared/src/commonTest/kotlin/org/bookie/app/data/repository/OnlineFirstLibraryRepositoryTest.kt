@@ -1,6 +1,8 @@
 package org.bookie.app.data.repository
 
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.bookie.app.data.local.LibraryCache
 import org.bookie.app.data.remote.LibraryRemoteDataSource
@@ -71,6 +73,8 @@ class OnlineFirstLibraryRepositoryTest {
     }
 
     private class FakeCache(var stored: LibraryPage?) : LibraryCache {
+        override fun observePage(accountId: String, page: Int, limit: Int, status: LibraryStatus?, favoritesOnly: Boolean): Flow<LibraryPage?> = flowOf(stored)
+        override fun observeState(accountId: String, stateId: String): Flow<LibraryBookState?> = flowOf(stored?.books?.firstOrNull())
         var replaceCount = 0
         var clearCount = 0
         var lastCleared: String? = null
