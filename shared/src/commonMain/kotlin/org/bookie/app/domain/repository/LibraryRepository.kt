@@ -16,6 +16,9 @@ interface LibraryRepository {
         favoritesOnly: Boolean = false,
     ): Resource<LibraryPage>
 
+    /** Deletes only the authenticated user's library state, never the catalog book. */
+    suspend fun deleteState(stateId: String): Resource<Unit>
+
     suspend fun saveState(input: LibraryStateInput): Resource<LibraryBookState>
 
     suspend fun createReadingSession(
