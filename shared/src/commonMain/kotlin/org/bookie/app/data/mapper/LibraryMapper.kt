@@ -17,7 +17,7 @@ fun LibraryBookStateDto.toDomain() = LibraryBookState(
     id = id,
     bookId = bookId,
     book = book.toDomain(),
-    status = LibraryStatus.valueOf(status.name),
+    status = status.toDomain(),
     rating = rating,
     comment = comment,
     isFavorite = isFavorite,
@@ -68,4 +68,14 @@ fun ReadingSessionInput.toDto() = CreateReadingSessionDto(
     notes = notes,
 )
 
-private fun LibraryStatus.toDto() = LibraryStatusDto.valueOf(name)
+fun LibraryStatus.toDto(): LibraryStatusDto = when (this) {
+    LibraryStatus.TO_READ -> LibraryStatusDto.TO_READ
+    LibraryStatus.READING -> LibraryStatusDto.READING
+    LibraryStatus.READ -> LibraryStatusDto.READ
+}
+
+private fun LibraryStatusDto.toDomain(): LibraryStatus = when (this) {
+    LibraryStatusDto.TO_READ -> LibraryStatus.TO_READ
+    LibraryStatusDto.READING -> LibraryStatus.READING
+    LibraryStatusDto.READ -> LibraryStatus.READ
+}

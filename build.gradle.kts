@@ -17,8 +17,8 @@ buildscript {
         "org.bouncycastle:bcutil-jdk18on:1.85",
         "com.google.protobuf:protobuf-java:3.25.5",
         "com.google.protobuf:protobuf-kotlin:3.25.5",
-        "io.opentelemetry:opentelemetry-api:1.62.0",
-        "io.opentelemetry:opentelemetry-context:1.62.0",
+        "io.opentelemetry:opentelemetry-api:1.67.0",
+        "io.opentelemetry:opentelemetry-context:1.67.0",
         "org.apache.commons:commons-lang3:3.18.0",
         "org.apache.httpcomponents:httpclient:4.5.14",
         "org.bitbucket.b_c:jose4j:0.9.6",
@@ -35,4 +35,5 @@ plugins {
     alias(libs.plugins.composeCompiler) apply false
     alias(libs.plugins.kotlinMultiplatform) apply false
     alias(libs.plugins.kotlinSerialization) apply false
+    alias(libs.plugins.sqldelight) apply false
 }
