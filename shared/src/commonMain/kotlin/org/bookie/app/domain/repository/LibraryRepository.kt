@@ -16,6 +16,8 @@ interface LibraryRepository {
         favoritesOnly: Boolean = false,
     ): Resource<LibraryPage>
 
+    suspend fun deleteState(stateId: String): Resource<Unit>
+
     suspend fun saveState(input: LibraryStateInput): Resource<LibraryBookState>
 
     suspend fun createReadingSession(
