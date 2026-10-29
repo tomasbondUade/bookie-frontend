@@ -3,6 +3,8 @@ package org.bookie.app.data.auth
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.engine.HttpClientEngineConfig
+import io.ktor.client.engine.HttpClientEngineFactory
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -24,6 +26,17 @@ interface SupabaseAuthRemoteDataSource {
 /** Dedicated Supabase client: Bookie's JWT plugin must not attach tokens to another origin. */
 fun createSupabaseHttpClient(engine: HttpClientEngine): HttpClient = HttpClient(engine) {
     expectSuccess = true
+    followRedirects = false
+    install(ContentNegotiation) {
+        json(Json { ignoreUnknownKeys = true })
+    }
+}
+
+fun <T : HttpClientEngineConfig> createSupabaseHttpClient(
+    engine: HttpClientEngineFactory<T>,
+): HttpClient = HttpClient(engine) {
+    expectSuccess = true
+    followRedirects = false
     install(ContentNegotiation) {
         json(Json { ignoreUnknownKeys = true })
     }

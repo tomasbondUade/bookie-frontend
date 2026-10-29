@@ -2,6 +2,8 @@ package org.bookie.app.data.auth
 
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.engine.HttpClientEngineConfig
+import io.ktor.client.engine.HttpClientEngineFactory
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.header
@@ -24,6 +26,16 @@ interface BookieUserSyncRemoteDataSource {
  */
 fun createBookieUserSyncHttpClient(
     engine: HttpClientEngine,
+    config: BookieHttpClientConfig,
+): HttpClient = HttpClient(engine) {
+    expectSuccess = true
+    followRedirects = false
+    install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+    defaultRequest { url(config.requestBaseUrl) }
+}
+
+fun <T : HttpClientEngineConfig> createBookieUserSyncHttpClient(
+    engine: HttpClientEngineFactory<T>,
     config: BookieHttpClientConfig,
 ): HttpClient = HttpClient(engine) {
     expectSuccess = true
