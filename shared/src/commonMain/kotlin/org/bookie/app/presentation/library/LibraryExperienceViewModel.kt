@@ -31,6 +31,7 @@ class LibraryExperienceViewModel(
     val uiState = mutableState.asStateFlow()
 
     private val pages = mutableMapOf<Int, LibraryPage>()
+    private val pageFreshness = mutableMapOf<Int, Boolean>()
     private var readJob: Job? = null
     private var mutationJob: Job? = null
     private var readVersion = 0L
@@ -55,16 +56,16 @@ class LibraryExperienceViewModel(
 
     fun loadNextPage() {
         val current = (mutableState.value.content as? LibraryContentState.Ready)?.snapshot ?: return
-        if (!current.canLoadMore || current.isLoadingMore || mutationJob?.isActive == true) return
+        if (!current.canLoadMore || current.isLoadingMore || readJob?.isActive == true ||
+            mutationJob?.isActive == true
+        ) return
         requestPage(page = current.page + 1, append = true, preserveVisible = true)
     }
 
     fun retry() {
         val current = (mutableState.value.content as? LibraryContentState.Ready)?.snapshot
-        if (current != null && current.warning != null && current.canLoadMore &&
-            lastPageAttempted > current.page
-        ) {
-            loadNextPage()
+        if (current?.warning != null && lastPageAttempted > 1 && pages.containsKey(1)) {
+            requestPage(page = lastPageAttempted, append = true, preserveVisible = true)
         } else {
             refresh()
         }
@@ -141,6 +142,7 @@ class LibraryExperienceViewModel(
         lastPageAttempted = page
         if (!append) {
             pages.clear()
+            pageFreshness.clear()
             mutableState.value = mutableState.value.copy(
                 content = LibraryContentState.Loading(
                     if (preserveVisible) previous?.copy(stale = true, isLoadingMore = false) else null,
@@ -183,6 +185,7 @@ class LibraryExperienceViewModel(
 
     private fun applyPage(page: Int, result: LibraryPage, stale: Boolean) {
         pages[page] = result
+        pageFreshness[page] = !stale
         val ordered = pages.toSortedMap().values
         val entries = ordered.flatMap { it.books }.distinctBy(LibraryBookState::id)
         val snapshot = LibrarySnapshot(
@@ -190,11 +193,11 @@ class LibraryExperienceViewModel(
             page = pages.keys.maxOrNull() ?: page,
             totalPages = result.totalPages,
             total = result.total,
-            stale = stale,
+            stale = pageFreshness.values.any { !it },
         )
         mutableState.value = mutableState.value.copy(
             content = if (entries.isEmpty()) {
-                LibraryContentState.Empty(stale = stale)
+                LibraryContentState.Empty(stale = snapshot.stale)
             } else {
                 LibraryContentState.Ready(snapshot)
             },
