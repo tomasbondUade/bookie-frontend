@@ -1,10 +1,12 @@
 package org.bookie.app.data.local
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
-import kotlinx.coroutines.async
-import kotlinx.coroutines.flow.take
-import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.bookie.app.data.local.db.BookieCacheDatabase
 import org.bookie.app.domain.model.Book
 import org.bookie.app.domain.model.LibraryBookState
@@ -16,40 +18,45 @@ import kotlin.test.assertNull
 
 class SqlDelightLibraryCacheFlowTest {
     @Test
-    fun `page observer emits initial empty cache then saved page and updated progress`() = runTest {
+    fun `page observer emits initial empty cache then saved page and updated progress`() = runBlocking {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             BookieCacheDatabase.Schema.create(driver)
             val cache = SqlDelightLibraryCache(driver)
-            val values = async { cache.observePage("alice", 1, 20).take(3).toList() }
-            kotlinx.coroutines.yield()
-            cache.replacePage("alice", LibraryPage(listOf(state(10)), 1, 20, 1, 1))
-            kotlinx.coroutines.yield()
-            cache.replacePage("alice", LibraryPage(listOf(state(40)), 1, 20, 1, 1))
-            val pages = values.await()
-            assertNull(pages[0])
-            assertEquals(10, pages[1]?.books?.single()?.currentPage)
-            assertEquals(40, pages[2]?.books?.single()?.currentPage)
+            val events = Channel<LibraryPage?>(Channel.UNLIMITED)
+            val observer = launch { cache.observePage("alice", 1, 20).collect { events.send(it) } }
+            try {
+                // Await each emission before mutating SQLDelight again: asFlow uses Dispatchers.Default.
+                assertNull(withTimeout(5_000) { events.receive() })
+                cache.replacePage("alice", LibraryPage(listOf(state(10)), 1, 20, 1, 1))
+                assertEquals(10, withTimeout(5_000) { events.receive() }?.books?.single()?.currentPage)
+                cache.replacePage("alice", LibraryPage(listOf(state(40)), 1, 20, 1, 1))
+                assertEquals(40, withTimeout(5_000) { events.receive() }?.books?.single()?.currentPage)
+            } finally {
+                observer.cancelAndJoin()
+            }
         } finally {
             driver.close()
         }
     }
 
     @Test
-    fun `state observer emits null then progress and clears on logout`() = runTest {
+    fun `state observer emits null then progress and clears on logout`() = runBlocking {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             BookieCacheDatabase.Schema.create(driver)
             val cache = SqlDelightLibraryCache(driver)
-            val values = async { cache.observeState("alice", "state-1").take(3).toList() }
-            kotlinx.coroutines.yield()
-            cache.replacePage("alice", LibraryPage(listOf(state(15)), 1, 20, 1, 1))
-            kotlinx.coroutines.yield()
-            cache.clearAccount("alice")
-            val states = values.await()
-            assertNull(states[0])
-            assertEquals(15, states[1]?.currentPage)
-            assertNull(states[2])
+            val events = Channel<LibraryBookState?>(Channel.UNLIMITED)
+            val observer = launch { cache.observeState("alice", "state-1").collect { events.send(it) } }
+            try {
+                assertNull(withTimeout(5_000) { events.receive() })
+                cache.replacePage("alice", LibraryPage(listOf(state(15)), 1, 20, 1, 1))
+                assertEquals(15, withTimeout(5_000) { events.receive() }?.currentPage)
+                cache.clearAccount("alice")
+                assertNull(withTimeout(5_000) { events.receive() })
+            } finally {
+                observer.cancelAndJoin()
+            }
         } finally {
             driver.close()
         }
