@@ -32,6 +32,11 @@ class LibraryRepositoryImpl(
         ).toDomain()
     }
 
+    override suspend fun deleteState(stateId: String): Resource<Unit> = safely {
+        require(stateId.isNotBlank()) { "Library state ID cannot be blank." }
+        remoteDataSource.deleteState(stateId)
+    }
+
     override suspend fun saveState(input: LibraryStateInput): Resource<LibraryBookState> =
         safely { remoteDataSource.saveState(input.toDto()).toDomain() }
 
