@@ -32,9 +32,10 @@ class SqlDelightLibraryCache(
             .executeAsOneOrNull() ?: return null
         val ids = queries.selectPageStateIds(accountId, filter, favorite, page.toLong(), limit.toLong())
             .executeAsList()
-        val books = ids.map { id ->
-            queries.selectState(accountId, id).executeAsOneOrNull()?.toDomain()
-                ?: return null
+        val books = mutableListOf<LibraryBookState>()
+        for (id in ids) {
+            val cached = queries.selectState(accountId, id).executeAsOneOrNull() ?: return null
+            books.add(cached.toDomain())
         }
         return LibraryPage(
             books = books,
