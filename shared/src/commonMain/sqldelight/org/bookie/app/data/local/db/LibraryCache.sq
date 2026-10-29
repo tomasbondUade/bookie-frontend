@@ -1,0 +1,96 @@
+CREATE TABLE cachedLibraryState (
+  accountId TEXT NOT NULL,
+  stateId TEXT NOT NULL,
+  bookId TEXT NOT NULL,
+  googleBookId TEXT NOT NULL,
+  bookTitle TEXT NOT NULL,
+  authorsJson TEXT NOT NULL,
+  bookDescription TEXT,
+  genresJson TEXT NOT NULL,
+  coverUrl TEXT,
+  previewLink TEXT,
+  infoLink TEXT,
+  buyLink TEXT,
+  status TEXT NOT NULL,
+  rating INTEGER,
+  comment TEXT,
+  isFavorite INTEGER NOT NULL,
+  currentPage INTEGER,
+  progressPercentage INTEGER,
+  startedAt TEXT,
+  finishedAt TEXT,
+  isAbandoned INTEGER NOT NULL,
+  updatedAt TEXT NOT NULL,
+  PRIMARY KEY (accountId, stateId)
+);
+
+CREATE TABLE cachedLibraryPage (
+  accountId TEXT NOT NULL,
+  statusFilter TEXT NOT NULL,
+  favoritesOnly INTEGER NOT NULL,
+  pageNumber INTEGER NOT NULL,
+  pageSize INTEGER NOT NULL,
+  total INTEGER NOT NULL,
+  totalPages INTEGER NOT NULL,
+  PRIMARY KEY (accountId, statusFilter, favoritesOnly, pageNumber, pageSize)
+);
+
+CREATE TABLE cachedLibraryPageItem (
+  accountId TEXT NOT NULL,
+  statusFilter TEXT NOT NULL,
+  favoritesOnly INTEGER NOT NULL,
+  pageNumber INTEGER NOT NULL,
+  pageSize INTEGER NOT NULL,
+  position INTEGER NOT NULL,
+  stateId TEXT NOT NULL,
+  PRIMARY KEY (accountId, statusFilter, favoritesOnly, pageNumber, pageSize, position)
+);
+
+CREATE INDEX cachedLibraryPageItem_state
+ON cachedLibraryPageItem(accountId, stateId);
+
+upsertState:
+INSERT OR REPLACE INTO cachedLibraryState (
+  accountId, stateId, bookId, googleBookId, bookTitle, authorsJson,
+  bookDescription, genresJson, coverUrl, previewLink, infoLink, buyLink,
+  status, rating, comment, isFavorite, currentPage, progressPercentage,
+  startedAt, finishedAt, isAbandoned, updatedAt
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+selectState:
+SELECT * FROM cachedLibraryState WHERE accountId = ? AND stateId = ?;
+
+upsertPage:
+INSERT OR REPLACE INTO cachedLibraryPage (
+  accountId, statusFilter, favoritesOnly, pageNumber, pageSize, total, totalPages
+) VALUES (?, ?, ?, ?, ?, ?, ?);
+
+selectPage:
+SELECT * FROM cachedLibraryPage
+WHERE accountId = ? AND statusFilter = ? AND favoritesOnly = ?
+  AND pageNumber = ? AND pageSize = ?;
+
+deletePageItems:
+DELETE FROM cachedLibraryPageItem
+WHERE accountId = ? AND statusFilter = ? AND favoritesOnly = ?
+  AND pageNumber = ? AND pageSize = ?;
+
+insertPageItem:
+INSERT INTO cachedLibraryPageItem (
+  accountId, statusFilter, favoritesOnly, pageNumber, pageSize, position, stateId
+) VALUES (?, ?, ?, ?, ?, ?, ?);
+
+selectPageStateIds:
+SELECT stateId FROM cachedLibraryPageItem
+WHERE accountId = ? AND statusFilter = ? AND favoritesOnly = ?
+  AND pageNumber = ? AND pageSize = ?
+ORDER BY position ASC;
+
+deleteAccountPageItems:
+DELETE FROM cachedLibraryPageItem WHERE accountId = ?;
+
+deleteAccountPages:
+DELETE FROM cachedLibraryPage WHERE accountId = ?;
+
+deleteAccountStates:
+DELETE FROM cachedLibraryState WHERE accountId = ?;
