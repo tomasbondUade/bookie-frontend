@@ -186,8 +186,9 @@ class LibraryExperienceViewModel(
     private fun applyPage(page: Int, result: LibraryPage, stale: Boolean) {
         pages[page] = result
         pageFreshness[page] = !stale
-        val ordered = pages.toSortedMap().values
-        val entries = ordered.flatMap { it.books }.distinctBy(LibraryBookState::id)
+        val entries = pages.entries.sortedBy { it.key }
+            .flatMap { it.value.books }
+            .distinctBy(LibraryBookState::id)
         val snapshot = LibrarySnapshot(
             entries = entries,
             page = pages.keys.maxOrNull() ?: page,
