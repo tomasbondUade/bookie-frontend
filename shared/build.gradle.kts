@@ -68,10 +68,12 @@ kotlin {
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.sqldelight.runtime)
         }
-        androidHostTest.dependencies {
-            implementation(libs.sqldelight.sqlite.driver)
-            implementation(libs.kotlin.test)
-            implementation(libs.kotlinx.coroutines.test)
+        named("androidHostTest") {
+            dependencies {
+                implementation(libs.sqldelight.sqlite.driver)
+                implementation(libs.kotlin.test)
+                implementation(libs.kotlinx.coroutines.test)
+            }
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
