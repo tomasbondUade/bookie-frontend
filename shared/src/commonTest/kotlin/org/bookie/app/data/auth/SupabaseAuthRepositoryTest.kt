@@ -1,6 +1,5 @@
 package org.bookie.app.data.auth
 
-import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpStatusCode
@@ -91,12 +90,18 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test fun `invalid refresh token expires and removes stored credentials`() = runTest {
-        val remote = FakeRemote().apply { refreshError = UnauthorizedException() }
+        val client = createSupabaseHttpClient(MockEngine {
+            respond("""{"msg":"Invalid refresh token"}""", status = HttpStatusCode.Unauthorized)
+        })
+        val remote = KtorSupabaseAuthRemoteDataSource(
+            client, SupabaseAuthConfig("https://supabase.example.test", "sb_publishable_test"),
+        )
         val store = MemoryStore(stored(expiresAt = now - 10))
-        val repository = repo(remote, store, FakeSync())
+        val repository = SupabaseAuthRepository(remote, store, FakeSync(), clock = { now })
         assertNull(repository.getAccessToken())
         assertIs<AuthState.Expired>(repository.state.value)
         assertNull(store.value)
+        client.close()
     }
 
     @Test fun `network outage on refresh preserves refresh token for retry`() = runTest {
@@ -198,8 +203,4 @@ class SupabaseAuthRepositoryTest {
         }
     }
 
-    /** Real HTTP exception to exercise ApiError.Http(401) mapping. */
-    private class UnauthorizedException : Exception() {
-        override val message: String = "invalid refresh token"
-    }
 }
