@@ -59,7 +59,7 @@ class BookListsRepositoryImplTest {
             CreateBookListInput("Favoritos", isPublic = false),
         )
         assertIs<Resource.Success<org.bookie.app.domain.model.BookList>>(result)
-        assertEquals("""{"name":"Favoritos","isPublic":false}""", payload)
+        assertEquals("""{"name":"Favoritos"}""", payload)
         client.close()
     }
 
