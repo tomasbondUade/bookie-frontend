@@ -20,6 +20,8 @@ import org.bookie.app.domain.model.LibraryStatus
 import org.bookie.app.domain.model.ReadingSession
 import org.bookie.app.domain.model.ReadingSessionInput
 import org.bookie.app.domain.repository.LibraryRepository
+import org.bookie.app.domain.repository.LibraryFeedRepository
+import org.bookie.app.domain.repository.LibraryCacheSession
 import org.bookie.app.domain.repository.ObservableLibraryRepository
 import org.bookie.app.domain.result.Resource
 
@@ -31,7 +33,7 @@ class OnlineFirstLibraryRepository(
     private val remote: LibraryRemoteDataSource,
     private val cache: LibraryCache,
     private val accounts: AccountIdProvider,
-) : LibraryRepository, ObservableLibraryRepository {
+) : LibraryRepository, ObservableLibraryRepository, LibraryFeedRepository, LibraryCacheSession {
     override fun observeCachedLibrary(
         page: Int,
         limit: Int,
@@ -58,11 +60,11 @@ class OnlineFirstLibraryRepository(
             .collect { emit(it) }
     }
 
-    fun observeLibrary(
-        page: Int = 1,
-        limit: Int = 20,
-        status: LibraryStatus? = null,
-        favoritesOnly: Boolean = false,
+    override fun observeLibrary(
+        page: Int,
+        limit: Int,
+        status: LibraryStatus?,
+        favoritesOnly: Boolean,
     ): Flow<LibraryLoad> = flow {
         val account = accounts.currentAccountId()?.takeIf { it.isNotBlank() }
         if (account == null) {
@@ -76,13 +78,21 @@ class OnlineFirstLibraryRepository(
         } catch (_: Exception) {
             null
         }
+        if (accounts.currentAccountId() != account) return@flow
         if (cached != null) emit(LibraryLoad.Cached(cached))
         try {
             val fresh = remote.getLibrary(
                 page, limit, status?.let { LibraryStatusDto.valueOf(it.name) }, favoritesOnly,
             ).toDomain()
             if (accounts.currentAccountId() != account) return@flow
-            cache.replacePage(account, fresh, status, favoritesOnly)
+            // A local storage error must not discard data already confirmed by the API.
+            try {
+                cache.replacePage(account, fresh, status, favoritesOnly)
+            } catch (cancel: CancellationException) {
+                throw cancel
+            } catch (_: Exception) {
+                // The remote result is still valid; it simply could not be cached.
+            }
             if (accounts.currentAccountId() != account) {
                 cache.clearAccount(account)
                 return@flow
@@ -140,7 +150,7 @@ class OnlineFirstLibraryRepository(
             Resource.Error(exception.toApiError().toMessage())
         }
 
-    suspend fun clearAccountCache(accountId: String) {
+    override suspend fun clearAccountCache(accountId: String) {
         require(accountId.isNotBlank())
         cache.clearAccount(accountId)
     }
