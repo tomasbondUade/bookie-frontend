@@ -11,6 +11,7 @@ data class StoredAuthSession(
     val userId: String,
     val email: String?,
     val username: String,
+    val syncPending: Boolean = true,
 )
 
 interface SecureSessionStore {
