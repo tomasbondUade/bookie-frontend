@@ -55,7 +55,7 @@ class SqlDelightLibraryCacheTest {
         }
     }
 
-    private fun withCache(block: suspend (LibraryCache) -> Unit) = runTest {
+    private suspend fun withCache(block: suspend (LibraryCache) -> Unit) {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             BookieCacheDatabase.Schema.create(driver)
