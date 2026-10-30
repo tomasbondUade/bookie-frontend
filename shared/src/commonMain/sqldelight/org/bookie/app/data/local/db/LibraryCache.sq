@@ -94,3 +94,21 @@ DELETE FROM cachedLibraryPage WHERE accountId = ?;
 
 deleteAccountStates:
 DELETE FROM cachedLibraryState WHERE accountId = ?;
+
+-- A single observed query references all three tables so SQLDelight invalidates
+-- the flow when page metadata, membership, or a saved reading state changes.
+-- LEFT JOIN preserves an empty cached page (no page items).
+observePageChanges:
+SELECT p.accountId, p.total, i.stateId, s.updatedAt
+FROM cachedLibraryPage AS p
+LEFT JOIN cachedLibraryPageItem AS i
+  ON p.accountId = i.accountId
+  AND p.statusFilter = i.statusFilter
+  AND p.favoritesOnly = i.favoritesOnly
+  AND p.pageNumber = i.pageNumber
+  AND p.pageSize = i.pageSize
+LEFT JOIN cachedLibraryState AS s
+  ON s.accountId = p.accountId AND s.stateId = i.stateId
+WHERE p.accountId = ? AND p.statusFilter = ? AND p.favoritesOnly = ?
+  AND p.pageNumber = ? AND p.pageSize = ?
+ORDER BY i.position ASC;

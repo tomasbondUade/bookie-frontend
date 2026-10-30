@@ -1,5 +1,6 @@
 package org.bookie.app.data.local
 
+import kotlinx.coroutines.flow.Flow
 import org.bookie.app.domain.model.LibraryBookState
 import org.bookie.app.domain.model.LibraryPage
 import org.bookie.app.domain.model.LibraryStatus
@@ -9,6 +10,18 @@ import org.bookie.app.domain.model.LibraryStatus
  * Private notes are deliberately not persisted without encryption.
  */
 interface LibraryCache {
+    /** Emits null if no page is cached, then emits changes to the page or its progress. */
+    fun observePage(
+        accountId: String,
+        page: Int,
+        limit: Int,
+        status: LibraryStatus? = null,
+        favoritesOnly: Boolean = false,
+    ): Flow<LibraryPage?>
+
+    /** Observes a personal library state, including changes to its reading progress. */
+    fun observeState(accountId: String, stateId: String): Flow<LibraryBookState?>
+
     suspend fun readPage(
         accountId: String,
         page: Int,
