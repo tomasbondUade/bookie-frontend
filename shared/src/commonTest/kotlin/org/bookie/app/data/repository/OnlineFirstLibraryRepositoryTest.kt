@@ -51,6 +51,38 @@ class OnlineFirstLibraryRepositoryTest {
         assertEquals(page(10), cache.stored)
     }
 
+    @Test fun `confirmed delete invalidates account cache`() = runTest {
+        val cache = FakeCache(page(10))
+        val remote = FakeRemote(pageDto(40))
+        val repository = OnlineFirstLibraryRepository(remote, cache, AccountIdProvider { "alice" })
+
+        assertEquals(Resource.Success(Unit), repository.deleteState("state-1"))
+        assertEquals(listOf("state-1"), remote.deletedIds)
+        assertEquals("alice", cache.lastCleared)
+        assertEquals(1, cache.clearCount)
+        assertNull(cache.stored)
+    }
+
+    @Test fun `rejected delete leaves cached data untouched`() = runTest {
+        val cache = FakeCache(page(10))
+        val remote = FakeRemote(pageDto(40)).apply { failure = IllegalStateException("HTTP 500") }
+        val repository = OnlineFirstLibraryRepository(remote, cache, AccountIdProvider { "alice" })
+
+        assertIs<Resource.Error>(repository.deleteState("state-1"))
+        assertEquals(0, cache.clearCount)
+        assertEquals(page(10), cache.stored)
+    }
+
+    @Test fun `delete without a session does not call remote or clear cache`() = runTest {
+        val cache = FakeCache(page(10))
+        val remote = FakeRemote(pageDto(40))
+        val repository = OnlineFirstLibraryRepository(remote, cache, AccountIdProvider { null })
+
+        assertIs<Resource.Error>(repository.deleteState("state-1"))
+        assertTrue(remote.deletedIds.isEmpty())
+        assertEquals(0, cache.clearCount)
+    }
+
     @Test fun `successful write invalidates account cache only`() = runTest {
         val cache = FakeCache(page(10))
         val repository = OnlineFirstLibraryRepository(
@@ -94,6 +126,11 @@ class OnlineFirstLibraryRepositoryTest {
     private class FakeRemote(private val response: LibraryPageDto) : LibraryRemoteDataSource {
         var failure: Exception? = null
         var onGet: () -> Unit = {}
+        val deletedIds = mutableListOf<String>()
+        override suspend fun deleteState(stateId: String) {
+            failure?.let { throw it }
+            deletedIds += stateId
+        }
         override suspend fun getLibrary(page: Int, limit: Int, status: LibraryStatusDto?, favoritesOnly: Boolean): LibraryPageDto {
             onGet()
             failure?.let { throw it }
