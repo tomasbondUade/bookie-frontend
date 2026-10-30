@@ -127,6 +127,9 @@ class ReadingProgressViewModelTest {
         override suspend fun getLibrary(page: Int, limit: Int, status: LibraryStatus?, favoritesOnly: Boolean): Resource<LibraryPage> =
             Resource.Error("unused")
 
+        override suspend fun deleteState(stateId: String): Resource<Unit> =
+            Resource.Error("unused")
+
         override suspend fun saveState(input: LibraryStateInput): Resource<LibraryBookState> {
             snapshotCalls++
             return if (snapshotResult is Resource.Error && (snapshotResult as Resource.Error).message == "unused") {
