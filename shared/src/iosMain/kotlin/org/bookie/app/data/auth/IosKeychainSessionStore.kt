@@ -1,6 +1,7 @@
 package org.bookie.app.data.auth
 
-import kotlinx.cinterop.CFTypeRefVar
+import kotlinx.cinterop.ExperimentalForeignApi
+import platform.CoreFoundation.CFTypeRefVar
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.reinterpret
@@ -17,7 +18,7 @@ import platform.CoreFoundation.CFRelease
 import platform.CoreFoundation.CFStringCreateWithCString
 import platform.CoreFoundation.kCFBooleanTrue
 import platform.CoreFoundation.kCFStringEncodingUTF8
-import platform.Foundation.NSDate
+import platform.posix.time
 import platform.Security.SecItemAdd
 import platform.Security.SecItemCopyMatching
 import platform.Security.SecItemDelete
@@ -36,6 +37,7 @@ import platform.Security.kSecReturnData
 import platform.Security.kSecValueData
 
 /** Keychain generic-password item, local to this device and available only when unlocked. */
+@OptIn(ExperimentalForeignApi::class)
 class IosKeychainSessionStore(
     private val service: String = "org.bookie.app.supabase.auth",
 ) : SecureSessionStore {
@@ -121,4 +123,5 @@ class IosKeychainSessionStore(
     }
 }
 
-actual fun currentEpochSeconds(): Long = NSDate().timeIntervalSince1970.toLong()
+@OptIn(ExperimentalForeignApi::class)
+actual fun currentEpochSeconds(): Long = time(null).toLong()
