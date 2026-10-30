@@ -89,6 +89,10 @@ class OnlineFirstLibraryRepository(
         return result
     }
 
+    override suspend fun deleteState(stateId: String): Resource<Unit> = remoteWrite {
+        remote.deleteState(stateId)
+    }
+
     override suspend fun saveState(input: LibraryStateInput): Resource<LibraryBookState> =
         remoteWrite {
             remote.saveState(input.toDto()).toDomain()
