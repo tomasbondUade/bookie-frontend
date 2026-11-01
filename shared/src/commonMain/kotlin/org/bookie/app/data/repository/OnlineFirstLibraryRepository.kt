@@ -76,6 +76,7 @@ class OnlineFirstLibraryRepository(
         } catch (_: Exception) {
             null
         }
+        if (accounts.currentAccountId() != account) return@flow
         if (cached != null) emit(LibraryLoad.Cached(cached))
         try {
             val fresh = remote.getLibrary(
@@ -136,8 +137,13 @@ class OnlineFirstLibraryRepository(
 
     override suspend fun getReadingSessions(stateId: String): Resource<List<ReadingSession>> =
         try {
-            requireAccount()
-            Resource.Success(remote.getReadingSessions(stateId).map { it.toDomain() })
+            val account = requireAccount()
+            val sessions = remote.getReadingSessions(stateId).map { it.toDomain() }
+            if (accounts.currentAccountId() != account) {
+                Resource.Error("La cuenta cambió durante la operación. Volvé a cargar tu biblioteca.")
+            } else {
+                Resource.Success(sessions)
+            }
         } catch (cancel: CancellationException) {
             throw cancel
         } catch (exception: Exception) {
