@@ -102,6 +102,33 @@ class OnlineFirstLibraryRepositoryTest {
         assertEquals(0, cache.replaceCount)
     }
 
+    @Test fun `switching account during session history load discards the response`() = runTest {
+        var account = "alice"
+        val remote = FakeRemote(pageDto(40)).apply {
+            sessionResponse = listOf(
+                ReadingSessionDto(
+                    id = "session-1",
+                    userBookStateId = "state-1",
+                    notes = "private note",
+                    createdAt = "2026-10-29T00:00:00Z",
+                ),
+            )
+            onGetSessions = { account = "bob" }
+        }
+        val repository = OnlineFirstLibraryRepository(
+            remote,
+            FakeCache(null),
+            AccountIdProvider { account },
+        )
+
+        val result = repository.getReadingSessions("state-1")
+
+        assertEquals(
+            Resource.Error("La cuenta cambió durante la operación. Volvé a cargar tu biblioteca."),
+            result,
+        )
+    }
+
     private class FakeCache(var stored: LibraryPage?) : LibraryCache {
         var replaceCount = 0
         var clearCount = 0
@@ -122,6 +149,8 @@ class OnlineFirstLibraryRepositoryTest {
     private class FakeRemote(private val response: LibraryPageDto) : LibraryRemoteDataSource {
         var failure: Exception? = null
         var onGet: () -> Unit = {}
+        var onGetSessions: () -> Unit = {}
+        var sessionResponse: List<ReadingSessionDto> = emptyList()
         val deletedIds = mutableListOf<String>()
         override suspend fun deleteState(stateId: String) {
             failure?.let { throw it }
@@ -141,8 +170,9 @@ class OnlineFirstLibraryRepositoryTest {
             error("not used")
         }
         override suspend fun getReadingSessions(stateId: String): List<ReadingSessionDto> {
+            onGetSessions()
             failure?.let { throw it }
-            return emptyList()
+            return sessionResponse
         }
     }
 
