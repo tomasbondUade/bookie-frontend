@@ -53,6 +53,28 @@ The iOS simulator test requires macOS and Xcode:
 
 On Linux, Gradle may report iOS simulator tasks as disabled; that is a host limitation, not a passing iOS test. See the README for SDK and JDK requirements.
 
+## iOS Compilation on macOS
+
+The `.github/workflows/ios-build.yml` workflow runs on a GitHub-hosted macOS runner
+when relevant shared/iOS/Gradle files change. It verifies the configured iOS device
+Kotlin compilation and links the simulator Kotlin framework, including iOS-only
+implementations such as Keychain session storage. It does **not** run the iOS app,
+exercise Keychain on a simulator, or execute the `iosSimulatorArm64Test` suite.
+
+To reproduce this compilation on a Mac with Xcode, JDK 21, and Android SDK 37:
+
+```bash
+xcodebuild -version
+./gradlew --no-daemon --stacktrace \
+  :shared:compileKotlinIosArm64 \
+  :shared:linkDebugFrameworkIosSimulatorArm64
+```
+
+For simulator execution, use the `iosApp` Xcode scheme and run
+`./gradlew :shared:iosSimulatorArm64Test` on an Apple Silicon Mac with an
+appropriate simulator runtime. Record the actual result before claiming that
+the iOS app or Keychain behavior was validated.
+
 ## Security Checks
 
 CodeQL and Dependency Review run in GitHub Actions; Dependency Review is pull-request-only. This repository does not currently define a local command for those checks or a local secret-scanning tool. Treat the corresponding GitHub checks as required validation and do not add real tokens, passwords, or production configuration to test data.
