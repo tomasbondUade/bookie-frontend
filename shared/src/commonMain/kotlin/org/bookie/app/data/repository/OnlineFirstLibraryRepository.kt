@@ -48,6 +48,7 @@ class OnlineFirstLibraryRepository(
         } catch (_: Exception) {
             null
         }
+        if (accounts.currentAccountId() != account) return@flow
         if (cached != null) emit(LibraryLoad.Cached(cached))
         try {
             val fresh = remote.getLibrary(
