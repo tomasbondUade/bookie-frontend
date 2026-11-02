@@ -61,10 +61,10 @@ class OnlineFirstLibraryRepository(
     }
 
     override fun observeLibrary(
-        page: Int = 1,
-        limit: Int = 20,
-        status: LibraryStatus? = null,
-        favoritesOnly: Boolean = false,
+        page: Int,
+        limit: Int,
+        status: LibraryStatus?,
+        favoritesOnly: Boolean,
     ): Flow<LibraryLoad> = flow {
         val account = accounts.currentAccountId()?.takeIf { it.isNotBlank() }
         if (account == null) {
