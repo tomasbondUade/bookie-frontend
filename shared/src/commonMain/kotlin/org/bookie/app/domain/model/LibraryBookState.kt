@@ -43,7 +43,11 @@ data class LibraryStateInput(
     val finishedAt: String? = null,
     val isAbandoned: Boolean? = null,
     val privateNotes: String? = null,
-)
+) {
+    init {
+        requireValidReadingProgress(currentPage, progressPercentage)
+    }
+}
 
 data class ReadingSession(
     val id: String,
@@ -59,4 +63,8 @@ data class ReadingSessionInput(
     val currentPage: Int? = null,
     val progressPercentage: Int? = null,
     val notes: String? = null,
-)
+) {
+    init {
+        requireValidReadingProgress(currentPage, progressPercentage)
+    }
+}

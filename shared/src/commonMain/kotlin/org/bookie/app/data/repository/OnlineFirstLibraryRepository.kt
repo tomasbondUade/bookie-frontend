@@ -61,10 +61,10 @@ class OnlineFirstLibraryRepository(
     }
 
     override fun observeLibrary(
-        page: Int,
-        limit: Int,
-        status: LibraryStatus?,
-        favoritesOnly: Boolean,
+        page: Int = 1,
+        limit: Int = 20,
+        status: LibraryStatus? = null,
+        favoritesOnly: Boolean = false,
     ): Flow<LibraryLoad> = flow {
         val account = accounts.currentAccountId()?.takeIf { it.isNotBlank() }
         if (account == null) {
@@ -85,13 +85,13 @@ class OnlineFirstLibraryRepository(
                 page, limit, status?.let { LibraryStatusDto.valueOf(it.name) }, favoritesOnly,
             ).toDomain()
             if (accounts.currentAccountId() != account) return@flow
-            // A local storage error must not discard data already confirmed by the API.
+            // Local storage errors must not hide a successfully confirmed server response.
             try {
                 cache.replacePage(account, fresh, status, favoritesOnly)
             } catch (cancel: CancellationException) {
                 throw cancel
             } catch (_: Exception) {
-                // The remote result is still valid; it simply could not be cached.
+                // The remote response is still valid even when it cannot be cached.
             }
             if (accounts.currentAccountId() != account) {
                 cache.clearAccount(account)
@@ -127,6 +127,10 @@ class OnlineFirstLibraryRepository(
         return result
     }
 
+    override suspend fun deleteState(stateId: String): Resource<Unit> = remoteWrite {
+        remote.deleteState(stateId)
+    }
+
     override suspend fun saveState(input: LibraryStateInput): Resource<LibraryBookState> =
         remoteWrite {
             remote.saveState(input.toDto()).toDomain()
@@ -142,8 +146,13 @@ class OnlineFirstLibraryRepository(
 
     override suspend fun getReadingSessions(stateId: String): Resource<List<ReadingSession>> =
         try {
-            requireAccount()
-            Resource.Success(remote.getReadingSessions(stateId).map { it.toDomain() })
+            val account = requireAccount()
+            val sessions = remote.getReadingSessions(stateId).map { it.toDomain() }
+            if (accounts.currentAccountId() != account) {
+                Resource.Error("La cuenta cambió durante la operación. Volvé a cargar tu biblioteca.")
+            } else {
+                Resource.Success(sessions)
+            }
         } catch (cancel: CancellationException) {
             throw cancel
         } catch (exception: Exception) {

@@ -79,6 +79,27 @@ class LibraryRepositoryImplTest {
     }
 
     @Test
+    fun `deletes personal library state only after a successful server response`() = runTest {
+        val client = client { request ->
+            assertEquals("/v1/library/state/state-1", request.url.encodedPath)
+            respond("{}", headers = jsonHeaders())
+        }
+        val repository = LibraryRepositoryImpl(KtorLibraryRemoteDataSource(client))
+
+        assertEquals(Resource.Success(Unit), repository.deleteState("state-1"))
+        client.close()
+    }
+
+    @Test
+    fun `does not confirm deletion when server rejects it`() = runTest {
+        val client = client { respond("", HttpStatusCode.Forbidden) }
+        val repository = LibraryRepositoryImpl(KtorLibraryRemoteDataSource(client))
+
+        assertEquals(Resource.Error("El servidor respondió con HTTP 403."), repository.deleteState("state-1"))
+        client.close()
+    }
+
+    @Test
     fun `saves state and maps the server-confirmed response`() = runTest {
         var requestBody = ""
         val client = client { request ->

@@ -2,6 +2,7 @@ package org.bookie.app.data.remote
 
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
@@ -24,6 +25,8 @@ interface LibraryRemoteDataSource {
         status: LibraryStatusDto?,
         favoritesOnly: Boolean,
     ): LibraryPageDto
+
+    suspend fun deleteState(stateId: String)
 
     suspend fun saveState(input: SaveLibraryStateDto): LibraryBookStateDto
 
@@ -55,6 +58,13 @@ class KtorLibraryRemoteDataSource(
             status?.let { parameter("status", it.name) }
             if (favoritesOnly) parameter("filter", FAVORITES_FILTER)
         }.body()
+    }
+
+    override suspend fun deleteState(stateId: String) {
+        require(stateId.isNotBlank()) { "Library state ID cannot be blank." }
+        httpClient.delete {
+            url { appendPathSegments("library", "state", stateId) }
+        }
     }
 
     override suspend fun saveState(input: SaveLibraryStateDto): LibraryBookStateDto =

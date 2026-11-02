@@ -32,6 +32,10 @@ class LibraryRepositoryImpl(
         ).toDomain()
     }
 
+    override suspend fun deleteState(stateId: String): Resource<Unit> = safely {
+        remoteDataSource.deleteState(stateId)
+    }
+
     override suspend fun saveState(input: LibraryStateInput): Resource<LibraryBookState> =
         safely { remoteDataSource.saveState(input.toDto()).toDomain() }
 

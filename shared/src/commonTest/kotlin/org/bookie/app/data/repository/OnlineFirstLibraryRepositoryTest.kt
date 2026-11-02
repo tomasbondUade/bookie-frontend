@@ -1,8 +1,11 @@
 package org.bookie.app.data.repository
 
-import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.bookie.app.data.local.LibraryCache
 import org.bookie.app.data.remote.LibraryRemoteDataSource
@@ -51,6 +54,38 @@ class OnlineFirstLibraryRepositoryTest {
         assertEquals(page(10), cache.stored)
     }
 
+    @Test fun `confirmed delete invalidates account cache`() = runTest {
+        val cache = FakeCache(page(10))
+        val remote = FakeRemote(pageDto(40))
+        val repository = OnlineFirstLibraryRepository(remote, cache, AccountIdProvider { "alice" })
+
+        assertEquals(Resource.Success(Unit), repository.deleteState("state-1"))
+        assertEquals(listOf("state-1"), remote.deletedIds)
+        assertEquals("alice", cache.lastCleared)
+        assertEquals(1, cache.clearCount)
+        assertNull(cache.stored)
+    }
+
+    @Test fun `rejected delete leaves cached data untouched`() = runTest {
+        val cache = FakeCache(page(10))
+        val remote = FakeRemote(pageDto(40)).apply { failure = IllegalStateException("HTTP 500") }
+        val repository = OnlineFirstLibraryRepository(remote, cache, AccountIdProvider { "alice" })
+
+        assertIs<Resource.Error>(repository.deleteState("state-1"))
+        assertEquals(0, cache.clearCount)
+        assertEquals(page(10), cache.stored)
+    }
+
+    @Test fun `delete without a session does not call remote or clear cache`() = runTest {
+        val cache = FakeCache(page(10))
+        val remote = FakeRemote(pageDto(40))
+        val repository = OnlineFirstLibraryRepository(remote, cache, AccountIdProvider { null })
+
+        assertIs<Resource.Error>(repository.deleteState("state-1"))
+        assertTrue(remote.deletedIds.isEmpty())
+        assertEquals(0, cache.clearCount)
+    }
+
     @Test fun `successful write invalidates account cache only`() = runTest {
         val cache = FakeCache(page(10))
         val repository = OnlineFirstLibraryRepository(
@@ -72,13 +107,70 @@ class OnlineFirstLibraryRepositoryTest {
         assertEquals(0, cache.replaceCount)
     }
 
+    @Test fun `switching account during cache read discards cached page`() = runTest {
+        var account = "alice"
+        val readStarted = CompletableDeferred<Unit>()
+        val continueRead = CompletableDeferred<Unit>()
+        val cache = FakeCache(page(10)).apply {
+            onRead = {
+                readStarted.complete(Unit)
+                continueRead.await()
+            }
+        }
+        val remote = FakeRemote(pageDto(40))
+        val repository = OnlineFirstLibraryRepository(remote, cache, AccountIdProvider { account })
+        val states = mutableListOf<LibraryLoad>()
+
+        val observer = launch(start = CoroutineStart.UNDISPATCHED) {
+            repository.observeLibrary().toList(states)
+        }
+        readStarted.await()
+        account = "bob"
+        continueRead.complete(Unit)
+        observer.join()
+
+        assertTrue(states.isEmpty())
+        assertEquals(0, remote.getCount)
+    }
+
+    @Test fun `switching account during session history load discards the response`() = runTest {
+        var account = "alice"
+        val remote = FakeRemote(pageDto(40)).apply {
+            sessionResponse = listOf(
+                ReadingSessionDto(
+                    id = "session-1",
+                    userBookStateId = "state-1",
+                    notes = "private note",
+                    createdAt = "2026-10-29T00:00:00Z",
+                ),
+            )
+            onGetSessions = { account = "bob" }
+        }
+        val repository = OnlineFirstLibraryRepository(
+            remote,
+            FakeCache(null),
+            AccountIdProvider { account },
+        )
+
+        val result = repository.getReadingSessions("state-1")
+
+        assertEquals(
+            Resource.Error("La cuenta cambió durante la operación. Volvé a cargar tu biblioteca."),
+            result,
+        )
+    }
+
     private class FakeCache(var stored: LibraryPage?) : LibraryCache {
+        var onRead: suspend () -> Unit = {}
         override fun observePage(accountId: String, page: Int, limit: Int, status: LibraryStatus?, favoritesOnly: Boolean): Flow<LibraryPage?> = flowOf(stored)
         override fun observeState(accountId: String, stateId: String): Flow<LibraryBookState?> = flowOf(stored?.books?.firstOrNull())
         var replaceCount = 0
         var clearCount = 0
         var lastCleared: String? = null
-        override suspend fun readPage(accountId: String, page: Int, limit: Int, status: LibraryStatus?, favoritesOnly: Boolean) = stored
+        override suspend fun readPage(accountId: String, page: Int, limit: Int, status: LibraryStatus?, favoritesOnly: Boolean): LibraryPage? {
+            onRead()
+            return stored
+        }
         override suspend fun replacePage(accountId: String, page: LibraryPage, status: LibraryStatus?, favoritesOnly: Boolean) {
             replaceCount++
             stored = page
@@ -94,7 +186,16 @@ class OnlineFirstLibraryRepositoryTest {
     private class FakeRemote(private val response: LibraryPageDto) : LibraryRemoteDataSource {
         var failure: Exception? = null
         var onGet: () -> Unit = {}
+        var onGetSessions: () -> Unit = {}
+        var sessionResponse: List<ReadingSessionDto> = emptyList()
+        var getCount = 0
+        val deletedIds = mutableListOf<String>()
+        override suspend fun deleteState(stateId: String) {
+            failure?.let { throw it }
+            deletedIds += stateId
+        }
         override suspend fun getLibrary(page: Int, limit: Int, status: LibraryStatusDto?, favoritesOnly: Boolean): LibraryPageDto {
+            getCount++
             onGet()
             failure?.let { throw it }
             return response
@@ -108,8 +209,9 @@ class OnlineFirstLibraryRepositoryTest {
             error("not used")
         }
         override suspend fun getReadingSessions(stateId: String): List<ReadingSessionDto> {
+            onGetSessions()
             failure?.let { throw it }
-            return emptyList()
+            return sessionResponse
         }
     }
 

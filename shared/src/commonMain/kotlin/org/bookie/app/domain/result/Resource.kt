@@ -12,4 +12,9 @@ sealed interface Resource<out T> {
 enum class ResourceErrorKind {
     GENERAL,
     UNAUTHORIZED,
+    VALIDATION,
+    FORBIDDEN,
+    NOT_FOUND,
+    CONFLICT,
+    NETWORK,
 }
