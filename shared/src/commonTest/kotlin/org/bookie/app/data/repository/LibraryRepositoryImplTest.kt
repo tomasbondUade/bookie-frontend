@@ -79,6 +79,44 @@ class LibraryRepositoryImplTest {
     }
 
     @Test
+    fun `deletes a personal library state after HTTP 204 response`() = runTest {
+        var method: io.ktor.http.HttpMethod? = null
+        var path = ""
+        val client = client { request ->
+            method = request.method
+            path = request.url.encodedPath
+            respond("", HttpStatusCode.NoContent)
+        }
+        val repository = LibraryRepositoryImpl(KtorLibraryRemoteDataSource(client))
+
+        assertEquals(Resource.Success(Unit), repository.deleteState("state-1"))
+        assertEquals(io.ktor.http.HttpMethod.Delete, method)
+        assertEquals("/v1/library/state/state-1", path)
+        client.close()
+    }
+
+    @Test
+    fun `deletes personal library state only after a successful server response`() = runTest {
+        val client = client { request ->
+            assertEquals("/v1/library/state/state-1", request.url.encodedPath)
+            respond("{}", headers = jsonHeaders())
+        }
+        val repository = LibraryRepositoryImpl(KtorLibraryRemoteDataSource(client))
+
+        assertEquals(Resource.Success(Unit), repository.deleteState("state-1"))
+        client.close()
+    }
+
+    @Test
+    fun `does not confirm deletion when server rejects it`() = runTest {
+        val client = client { respond("", HttpStatusCode.Forbidden) }
+        val repository = LibraryRepositoryImpl(KtorLibraryRemoteDataSource(client))
+
+        assertEquals(Resource.Error("El servidor respondió con HTTP 403."), repository.deleteState("state-1"))
+        client.close()
+    }
+
+    @Test
     fun `saves state and maps the server-confirmed response`() = runTest {
         var requestBody = ""
         val client = client { request ->
@@ -123,35 +161,6 @@ class LibraryRepositoryImplTest {
                 ),
             ),
             result,
-        )
-        client.close()
-    }
-
-    @Test
-    fun `deletes a personal state after HTTP 204 confirmation`() = runTest {
-        var method: io.ktor.http.HttpMethod? = null
-        var path = ""
-        val client = client { request ->
-            method = request.method
-            path = request.url.encodedPath
-            respond("", HttpStatusCode.NoContent)
-        }
-        val repository = LibraryRepositoryImpl(KtorLibraryRemoteDataSource(client))
-
-        assertEquals(Resource.Success(Unit), repository.deleteState("state-1"))
-        assertEquals(io.ktor.http.HttpMethod.Delete, method)
-        assertEquals("/v1/library/state/state-1", path)
-        client.close()
-    }
-
-    @Test
-    fun `rejects deletion when backend denies ownership`() = runTest {
-        val client = client { respond("", HttpStatusCode.Forbidden) }
-        val repository = LibraryRepositoryImpl(KtorLibraryRemoteDataSource(client))
-
-        assertEquals(
-            Resource.Error("El servidor respondió con HTTP 403."),
-            repository.deleteState("another-users-state"),
         )
         client.close()
     }

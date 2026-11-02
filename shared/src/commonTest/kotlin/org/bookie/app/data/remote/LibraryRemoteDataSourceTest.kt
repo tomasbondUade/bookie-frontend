@@ -47,18 +47,18 @@ class LibraryRemoteDataSourceTest {
     }
 
     @Test
-    fun `deletes a personal library state with bearer auth and without touching the catalog`() = runTest {
+    fun `deletes a personal library state without deleting the catalog book`() = runTest {
         var captured: io.ktor.client.request.HttpRequestData? = null
         val client = createClient(AccessTokenProvider { "session-token" }) { request ->
             captured = request
-            respond("", HttpStatusCode.NoContent)
+            respond("{}", headers = jsonHeaders())
         }
 
-        KtorLibraryRemoteDataSource(client).deleteState("state-42")
+        KtorLibraryRemoteDataSource(client).deleteState("state-1")
 
         val request = assertNotNull(captured)
         assertEquals(HttpMethod.Delete, request.method)
-        assertEquals("/v1/library/state/state-42", request.url.encodedPath)
+        assertEquals("/v1/library/state/state-1", request.url.encodedPath)
         assertEquals("Bearer session-token", request.headers[HttpHeaders.Authorization])
         client.close()
     }
@@ -149,6 +149,10 @@ class LibraryRemoteDataSourceTest {
         }
         assertFailsWith<IllegalArgumentException> {
             dataSource.createReadingSession("state-1", CreateReadingSessionDto(), "x".repeat(256))
+        }
+
+        assertFailsWith<IllegalArgumentException> {
+            dataSource.deleteState("  ")
         }
 
         assertEquals(0, requestCount)
