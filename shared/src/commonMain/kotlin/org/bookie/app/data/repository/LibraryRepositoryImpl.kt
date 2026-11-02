@@ -33,6 +33,7 @@ class LibraryRepositoryImpl(
     }
 
     override suspend fun deleteState(stateId: String): Resource<Unit> = safely {
+        require(stateId.isNotBlank()) { "Library state ID cannot be blank." }
         remoteDataSource.deleteState(stateId)
     }
 

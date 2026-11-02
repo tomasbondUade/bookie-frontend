@@ -15,9 +15,9 @@ se lee la página local y se intenta actualizarla con `GET /library`:
    `cachedPage`, conservar el listado y mostrar un aviso de conexión/actualización.
    Si es null, mostrar error o estado vacío con opción de reintentar.
 
-El ViewModel de biblioteca (#32) debe consumir el caso de uso, convertir sus
-emisiones a un `StateFlow` inmutable y usar `Cached`, `Fresh` y `Failed`
-para decidir los estados de pantalla. **No** inferir frescura a partir de
+El `LibraryExperienceViewModel` (#10) consume el caso de uso y convierte sus
+emisiones a un `StateFlow` inmutable mediante `LibraryContentState`. La
+pantalla Compose de #32 debe observar ese estado, sin conocer Ktor ni SQLDelight. **No** inferir frescura a partir de
 `getLibrary(): Resource<LibraryPage>`: esa API de compatibilidad puede devolver
 caché en un `Resource.Success` sin indicar si está desactualizada.
 
@@ -64,5 +64,7 @@ de red. La fuente de verdad siempre es la API.
 - `./gradlew :androidApp:assembleDebug` valida el build Android.
 - iOS requiere macOS/Xcode: `./gradlew :shared:iosSimulatorArm64Test`.
 
-La pantalla completa y su composición/navegación corresponden a #32/#10,
-y la conexión real con la sesión de Supabase a #8.
+El adaptador MVVM y los contratos de acciones de biblioteca están en #10.
+La composición de la pantalla y navegación pertenecen a #32; la conexión
+real con la sesión de Supabase depende de #8. Véase
+[`library-experience-integration.md`](library-experience-integration.md).

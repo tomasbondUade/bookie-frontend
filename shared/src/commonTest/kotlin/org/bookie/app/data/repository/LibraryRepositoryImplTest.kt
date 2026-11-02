@@ -79,6 +79,23 @@ class LibraryRepositoryImplTest {
     }
 
     @Test
+    fun `deletes a personal library state after HTTP 204 response`() = runTest {
+        var method: io.ktor.http.HttpMethod? = null
+        var path = ""
+        val client = client { request ->
+            method = request.method
+            path = request.url.encodedPath
+            respond("", HttpStatusCode.NoContent)
+        }
+        val repository = LibraryRepositoryImpl(KtorLibraryRemoteDataSource(client))
+
+        assertEquals(Resource.Success(Unit), repository.deleteState("state-1"))
+        assertEquals(io.ktor.http.HttpMethod.Delete, method)
+        assertEquals("/v1/library/state/state-1", path)
+        client.close()
+    }
+
+    @Test
     fun `deletes personal library state only after a successful server response`() = runTest {
         val client = client { request ->
             assertEquals("/v1/library/state/state-1", request.url.encodedPath)

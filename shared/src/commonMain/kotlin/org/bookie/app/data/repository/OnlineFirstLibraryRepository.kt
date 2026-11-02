@@ -127,8 +127,9 @@ class OnlineFirstLibraryRepository(
         return result
     }
 
-    override suspend fun deleteState(stateId: String): Resource<Unit> = remoteWrite {
-        remote.deleteState(stateId)
+    override suspend fun deleteState(stateId: String): Resource<Unit> {
+        if (stateId.isBlank()) return Resource.Error("El ID del estado de biblioteca es obligatorio.")
+        return remoteWrite { remote.deleteState(stateId) }
     }
 
     override suspend fun saveState(input: LibraryStateInput): Resource<LibraryBookState> =
@@ -175,7 +176,14 @@ class OnlineFirstLibraryRepository(
             if (accounts.currentAccountId() != account) {
                 Resource.Error("La cuenta cambió durante la operación. Volvé a cargar tu biblioteca.")
             } else {
-                cache.clearAccount(account)
+                // Local cache errors do not reverse a write confirmed by the API.
+                try {
+                    cache.clearAccount(account)
+                } catch (cancel: CancellationException) {
+                    throw cancel
+                } catch (_: Exception) {
+                    // A later read can still refresh from the server.
+                }
                 Resource.Success(confirmed)
             }
         } catch (cancel: CancellationException) {

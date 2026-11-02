@@ -96,6 +96,25 @@ class OnlineFirstLibraryRepositoryTest {
         assertEquals(1, cache.clearCount)
     }
 
+    @Test fun `delete rejects blank personal state id without calling backend`() = runTest {
+        val cache = FakeCache(page(10))
+        val remote = FakeRemote(pageDto(40))
+        val repository = OnlineFirstLibraryRepository(remote, cache, AccountIdProvider { "alice" })
+
+        assertIs<Resource.Error>(repository.deleteState("  "))
+        assertTrue(remote.deletedIds.isEmpty())
+        assertEquals(0, cache.clearCount)
+    }
+
+    @Test fun `a confirmed deletion succeeds even if invalidating local cache fails`() = runTest {
+        val cache = FakeCache(page(10)).apply { onClear = { error("disk unavailable") } }
+        val remote = FakeRemote(pageDto(40))
+        val repository = OnlineFirstLibraryRepository(remote, cache, AccountIdProvider { "alice" })
+
+        assertEquals(Resource.Success(Unit), repository.deleteState("state-1"))
+        assertEquals(listOf("state-1"), remote.deletedIds)
+    }
+
     @Test fun `switching account during refresh prevents showing other account data`() = runTest {
         var account = "alice"
         val cache = FakeCache(page(10))
@@ -162,6 +181,7 @@ class OnlineFirstLibraryRepositoryTest {
 
     private class FakeCache(var stored: LibraryPage?) : LibraryCache {
         var onRead: suspend () -> Unit = {}
+        var onClear: suspend () -> Unit = {}
         override fun observePage(accountId: String, page: Int, limit: Int, status: LibraryStatus?, favoritesOnly: Boolean): Flow<LibraryPage?> = flowOf(stored)
         override fun observeState(accountId: String, stateId: String): Flow<LibraryBookState?> = flowOf(stored?.books?.firstOrNull())
         var replaceCount = 0
@@ -177,6 +197,7 @@ class OnlineFirstLibraryRepositoryTest {
         }
         override suspend fun readState(accountId: String, stateId: String): LibraryBookState? = stored?.books?.firstOrNull()
         override suspend fun clearAccount(accountId: String) {
+            onClear()
             clearCount++
             lastCleared = accountId
             stored = null
