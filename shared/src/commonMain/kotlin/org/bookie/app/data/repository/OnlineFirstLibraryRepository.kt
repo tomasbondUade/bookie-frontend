@@ -4,6 +4,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.takeWhile
 import org.bookie.app.data.local.LibraryCache
 import org.bookie.app.data.mapper.toDomain
 import org.bookie.app.data.mapper.toDto
@@ -19,6 +20,7 @@ import org.bookie.app.domain.model.LibraryStatus
 import org.bookie.app.domain.model.ReadingSession
 import org.bookie.app.domain.model.ReadingSessionInput
 import org.bookie.app.domain.repository.LibraryRepository
+import org.bookie.app.domain.repository.ObservableLibraryRepository
 import org.bookie.app.domain.result.Resource
 
 /**
@@ -29,7 +31,33 @@ class OnlineFirstLibraryRepository(
     private val remote: LibraryRemoteDataSource,
     private val cache: LibraryCache,
     private val accounts: AccountIdProvider,
-) : LibraryRepository {
+) : LibraryRepository, ObservableLibraryRepository {
+    override fun observeCachedLibrary(
+        page: Int,
+        limit: Int,
+        status: LibraryStatus?,
+        favoritesOnly: Boolean,
+    ): Flow<LibraryPage?> = observeForCurrentAccount { account ->
+        cache.observePage(account, page, limit, status, favoritesOnly)
+    }
+
+    override fun observeCachedState(stateId: String): Flow<LibraryBookState?> {
+        require(stateId.isNotBlank()) { "Library state ID cannot be blank." }
+        return observeForCurrentAccount { account -> cache.observeState(account, stateId) }
+    }
+
+    private fun <T> observeForCurrentAccount(source: (String) -> Flow<T?>): Flow<T?> = flow {
+        val account = accounts.currentAccountId()?.takeIf { it.isNotBlank() }
+        if (account == null) {
+            emit(null)
+            return@flow
+        }
+        // Stop emitting when the authenticated account changes. The caller must
+        // restart observation after login and clear the old account on logout.
+        source(account).takeWhile { accounts.currentAccountId() == account }
+            .collect { emit(it) }
+    }
+
     fun observeLibrary(
         page: Int = 1,
         limit: Int = 20,
