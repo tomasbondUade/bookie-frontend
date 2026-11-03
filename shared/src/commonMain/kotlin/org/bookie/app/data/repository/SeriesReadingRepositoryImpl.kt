@@ -14,6 +14,20 @@ import org.bookie.app.domain.result.ResourceErrorKind
 class SeriesReadingRepositoryImpl(
     private val remote: SeriesReadingRemoteDataSource,
 ) : SeriesReadingRepository {
+    override suspend fun getSeriesCatalog(
+        page: Int,
+        limit: Int,
+        universeId: String?,
+    ): Resource<SeriesCatalogPage> = safely {
+        remote.getSeriesCatalog(page, limit, universeId).toDomain()
+    }
+
+    override suspend fun getUniverses(): Resource<List<UniverseCatalogEntry>> =
+        safely { remote.getUniverses().map { it.toDomain() } }
+
+    override suspend fun getUniverseDetail(universeId: String): Resource<UniverseDetail> =
+        safely { remote.getUniverseDetail(universeId).toDomain() }
+
     override suspend fun getActiveSeries(): Resource<List<SeriesProgress>> =
         safely { remote.getActiveSeries().map { it.toDomain() } }
 
@@ -29,8 +43,19 @@ class SeriesReadingRepositoryImpl(
         val error = exception.toApiError()
         Resource.Error(
             error.toMessage(),
-            if (error is ApiError.Http && error.statusCode == 401) ResourceErrorKind.UNAUTHORIZED
-            else ResourceErrorKind.GENERAL,
+            error.toResourceKind(),
         )
+    }
+
+    private fun ApiError.toResourceKind(): ResourceErrorKind = when (this) {
+        is ApiError.Http -> when (statusCode) {
+            400, 422 -> ResourceErrorKind.VALIDATION
+            401 -> ResourceErrorKind.UNAUTHORIZED
+            403 -> ResourceErrorKind.FORBIDDEN
+            404 -> ResourceErrorKind.NOT_FOUND
+            else -> ResourceErrorKind.GENERAL
+        }
+        ApiError.Network, ApiError.Timeout -> ResourceErrorKind.NETWORK
+        ApiError.Parsing, ApiError.Unknown -> ResourceErrorKind.GENERAL
     }
 }
