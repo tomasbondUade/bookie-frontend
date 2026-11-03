@@ -28,6 +28,7 @@ fun SeriesReadingScreen(
     viewModel: SeriesReadingViewModel,
     onOpenBook: (String) -> Unit,
     onSignIn: (() -> Unit)? = null,
+    onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -59,7 +60,12 @@ fun SeriesReadingScreen(
                 }
             }
         } else {
-            TextButton(onClick = viewModel::clearSelection) { Text("Volver a mis sagas") }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = viewModel::clearSelection) { Text("Volver a mis sagas") }
+                onBack?.let { back ->
+                    TextButton(onClick = back) { Text("Volver a explorar") }
+                }
+            }
             when (val progress = state.progress) {
                 SeriesLoad.Idle, SeriesLoad.Loading -> CircularProgressIndicator()
                 is SeriesLoad.Failed -> Failure(progress, viewModel::loadProgress, onSignIn)
