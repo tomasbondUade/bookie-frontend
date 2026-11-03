@@ -45,7 +45,7 @@ class SeriesReadingRepositoryImplTest {
         client.close()
     }
 
-    @Test fun `chronological map keeps backend ordering, edges and optional progress`() = runTest {
+    @Test fun `chronological map keeps ordering edges and optional progress`() = runTest {
         val client = createBookieHttpClient(MockEngine { request ->
             assertEquals("/v1/series/series-1/map", request.url.encodedPath)
             assertEquals("CHRONOLOGICAL", request.url.parameters["path"])
