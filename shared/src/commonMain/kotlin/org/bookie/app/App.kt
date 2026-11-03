@@ -33,15 +33,23 @@ import org.bookie.app.presentation.navigation.AppFeatureViewModels
 import org.bookie.app.presentation.profile.ReadingStatsScreen
 import org.bookie.app.presentation.series.SeriesExplorerScreen
 import org.bookie.app.presentation.series.SeriesReadingScreen
+import org.bookie.app.theme.BookieTheme
 
 @Composable
 @Preview
 fun App(featureViewModels: AppFeatureViewModels? = null) {
-    MaterialTheme {
-        var selectedRoute by rememberSaveable { mutableStateOf(AppDestination.HOME.route) }
-        var selectedSurface by rememberSaveable { mutableStateOf(AppSurface.MAIN.name) }
-        val selectedDestination = AppDestination.fromRoute(selectedRoute) ?: AppDestination.HOME
-        val surface = AppSurface.entries.firstOrNull { it.name == selectedSurface } ?: AppSurface.MAIN
+    BookieTheme {
+        var selectedRoute by rememberSaveable {
+            mutableStateOf(AppDestination.HOME.route)
+        }
+        var selectedSurface by rememberSaveable {
+            mutableStateOf(AppSurface.MAIN.name)
+        }
+        val selectedDestination =
+            AppDestination.fromRoute(selectedRoute) ?: AppDestination.HOME
+        val surface = AppSurface.entries.firstOrNull {
+            it.name == selectedSurface
+        } ?: AppSurface.MAIN
 
         Scaffold(
             modifier = Modifier.fillMaxSize(),
@@ -60,15 +68,20 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
                                     contentDescription = null,
                                 )
                             },
-                            label = { Text(destination.label) },
+                            label = {
+                                Text(destination.label)
+                            },
                         )
                     }
                 }
             },
         ) { contentPadding ->
-            val contentModifier = Modifier.fillMaxSize().padding(contentPadding)
+            val contentModifier =
+                Modifier.fillMaxSize().padding(contentPadding)
+
             when {
-                surface == AppSurface.SERIES_DISCOVERY && featureViewModels != null -> {
+                surface == AppSurface.SERIES_DISCOVERY &&
+                        featureViewModels != null -> {
                     SeriesExplorerScreen(
                         viewModel = featureViewModels.seriesExplorer,
                         onOpenSeries = { seriesId ->
@@ -79,23 +92,31 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
                         modifier = contentModifier,
                     )
                 }
-                surface == AppSurface.SERIES_READING && featureViewModels != null -> {
+
+                surface == AppSurface.SERIES_READING &&
+                        featureViewModels != null -> {
                     SeriesReadingScreen(
                         viewModel = featureViewModels.seriesReading,
                         onOpenBook = featureViewModels.onOpenBook,
                         onSignIn = featureViewModels.onSignIn,
-                        onBack = { selectedSurface = AppSurface.SERIES_DISCOVERY.name },
+                        onBack = {
+                            selectedSurface = AppSurface.SERIES_DISCOVERY.name
+                        },
                         modifier = contentModifier,
                     )
                 }
-                selectedDestination == AppDestination.PROFILE && featureViewModels != null -> {
+
+                selectedDestination == AppDestination.PROFILE &&
+                        featureViewModels != null -> {
                     ReadingStatsScreen(
                         viewModel = featureViewModels.readingStats,
                         modifier = contentModifier,
                         onSessionExpired = featureViewModels.onSignIn,
                     )
                 }
-                selectedDestination == AppDestination.HOME && featureViewModels != null -> {
+
+                selectedDestination == AppDestination.HOME &&
+                        featureViewModels != null -> {
                     HomePlaceholder(
                         modifier = contentModifier,
                         onExploreSeries = {
@@ -103,13 +124,21 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
                         },
                     )
                 }
-                else -> DestinationPlaceholder(selectedDestination, contentModifier)
+
+                else -> DestinationPlaceholder(
+                    selectedDestination,
+                    contentModifier,
+                )
             }
         }
     }
 }
 
-private enum class AppSurface { MAIN, SERIES_DISCOVERY, SERIES_READING }
+private enum class AppSurface {
+    MAIN,
+    SERIES_DISCOVERY,
+    SERIES_READING,
+}
 
 @Composable
 private fun HomePlaceholder(
@@ -138,7 +167,10 @@ private fun HomePlaceholder(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Button(onClick = onExploreSeries, modifier = Modifier.padding(top = 16.dp)) {
+        Button(
+            onClick = onExploreSeries,
+            modifier = Modifier.padding(top = 16.dp),
+        ) {
             Text("Explorar sagas")
         }
     }
