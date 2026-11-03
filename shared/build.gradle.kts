@@ -22,7 +22,11 @@ kotlin {
     
     android {
        namespace = "org.bookie.app.shared"
-       compileSdk = libs.versions.android.compileSdk.get().toInt()
+       compileSdk {
+           version = release(libs.versions.android.compileSdk.get().toInt()) {
+               minorApiLevel = libs.versions.android.compileSdkMinor.get().toInt()
+           }
+       }
        minSdk = libs.versions.android.minSdk.get().toInt()
     
        compilerOptions {
@@ -56,6 +60,7 @@ kotlin {
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
+            implementation(libs.compose.material.icons.extended)
             implementation(libs.compose.ui)
             implementation(libs.compose.components.resources)
             implementation(libs.compose.uiToolingPreview)
@@ -67,6 +72,7 @@ kotlin {
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.sqldelight.runtime)
+            implementation(libs.sqldelight.coroutines.extensions)
         }
         named("androidHostTest") {
             dependencies {

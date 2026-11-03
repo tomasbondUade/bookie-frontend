@@ -142,6 +142,9 @@ class LibraryRemoteDataSourceTest {
             dataSource.getLibrary(page = 1, limit = 51, status = null, favoritesOnly = false)
         }
         assertFailsWith<IllegalArgumentException> {
+            dataSource.deleteState(" ")
+        }
+        assertFailsWith<IllegalArgumentException> {
             dataSource.createReadingSession("state-1", CreateReadingSessionDto(), " ")
         }
         assertFailsWith<IllegalArgumentException> {
