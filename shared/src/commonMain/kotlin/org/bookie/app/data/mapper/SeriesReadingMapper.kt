@@ -3,6 +3,52 @@ package org.bookie.app.data.mapper
 import org.bookie.app.data.remote.dto.*
 import org.bookie.app.domain.model.*
 
+fun SeriesCatalogPageDto.toDomain() = SeriesCatalogPage(
+    series = data.map { it.toDomain() },
+    page = meta.page,
+    limit = meta.limit,
+    total = meta.total,
+    totalPages = meta.totalPages,
+)
+
+fun SeriesCatalogDto.toDomain() = SeriesCatalogEntry(
+    id = id,
+    universeId = universeId,
+    title = title,
+    description = description,
+    coverUrl = coverUrl,
+    totalBooks = totalBooks,
+    nodeCount = counts?.nodes ?: nodes.size,
+    universe = universe?.toDomain(),
+)
+
+fun UniverseReferenceDto.toDomain() = UniverseReference(
+    id, name, description, imageUrl, author,
+)
+
+fun UniverseProgressDto.toDomain() = UniverseProgress(
+    universeId, name, totalBooks, readBooks, completionPercentage, isCompleted,
+)
+
+fun UniverseCatalogDto.toDomain() = UniverseCatalogEntry(
+    id = id,
+    name = name,
+    description = description,
+    imageUrl = imageUrl,
+    author = author,
+    seriesCount = counts?.series ?: 0,
+    progress = progress?.toDomain(),
+)
+
+fun UniverseDetailDto.toDomain() = UniverseDetail(
+    id = id,
+    name = name,
+    description = description,
+    imageUrl = imageUrl,
+    author = author,
+    series = series.map { it.toDomain() },
+)
+
 fun ReadingPath.toDto(): ReadingPathDto = ReadingPathDto.valueOf(name)
 fun ReadingPathDto.toDomain(): ReadingPath = ReadingPath.valueOf(name)
 fun SeriesNodeStatusDto.toDomain(): SeriesNodeStatus = SeriesNodeStatus.valueOf(name)
