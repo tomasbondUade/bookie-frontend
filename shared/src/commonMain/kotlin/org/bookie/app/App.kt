@@ -34,11 +34,16 @@ import org.bookie.app.presentation.profile.ReadingStatsScreen
 import org.bookie.app.presentation.series.SeriesExplorerScreen
 import org.bookie.app.presentation.series.SeriesReadingScreen
 import org.bookie.app.presentation.tinder.TinderScreen
+import org.bookie.app.presentation.tinder.TinderViewModel
 import org.bookie.app.theme.BookieTheme
 
 @Composable
 @Preview
-fun App(featureViewModels: AppFeatureViewModels? = null) {
+fun App(
+    featureViewModels: AppFeatureViewModels? = null,
+    tinderViewModel: TinderViewModel? = featureViewModels?.tinder,
+    onSignIn: (() -> Unit)? = featureViewModels?.onSignIn,
+) {
     BookieTheme {
         var selectedRoute by rememberSaveable {
             mutableStateOf(AppDestination.HOME.route)
@@ -107,10 +112,10 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
                     )
                 }
 
-                surface == AppSurface.TINDER && featureViewModels?.tinder != null -> {
+                surface == AppSurface.TINDER && tinderViewModel != null -> {
                     TinderScreen(
-                        viewModel = featureViewModels.tinder,
-                        onSignIn = featureViewModels.onSignIn,
+                        viewModel = tinderViewModel,
+                        onSignIn = onSignIn,
                         modifier = contentModifier,
                     )
                 }
@@ -125,7 +130,7 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
                 }
 
                 selectedDestination == AppDestination.HOME &&
-                        featureViewModels != null -> {
+                        (featureViewModels != null || tinderViewModel != null) -> {
                     HomePlaceholder(
                         modifier = contentModifier,
                         onExploreSeries = {
@@ -135,6 +140,10 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
                             selectedSurface = AppSurface.TINDER.name
                         },
                     )
+                }
+
+                surface == AppSurface.TINDER -> {
+                    DestinationPlaceholder(selectedDestination, contentModifier)
                 }
 
                 else -> DestinationPlaceholder(
