@@ -1,6 +1,7 @@
 package org.bookie.app.presentation.tinder
 
 import io.ktor.client.HttpClient
+import org.bookie.app.data.auth.AuthClientBundle
 import org.bookie.app.data.remote.KtorTinderRemoteDataSource
 import org.bookie.app.data.repository.BookTinderRepositoryImpl
 import org.bookie.app.domain.usecase.GetTinderBooks
@@ -18,3 +19,7 @@ fun createTinderViewModel(httpClient: HttpClient): TinderViewModel {
         registerSwipe = RegisterBookSwipe(repository)
     )
 }
+
+/** Reuse the existing Supabase-backed JWT client and its refresh handling. */
+fun createTinderViewModel(bundle: AuthClientBundle): TinderViewModel =
+    createTinderViewModel(bundle.bookieClient)
