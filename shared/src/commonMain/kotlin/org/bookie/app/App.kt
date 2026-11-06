@@ -33,6 +33,7 @@ import org.bookie.app.presentation.navigation.AppFeatureViewModels
 import org.bookie.app.presentation.profile.ReadingStatsScreen
 import org.bookie.app.presentation.series.SeriesExplorerScreen
 import org.bookie.app.presentation.series.SeriesReadingScreen
+import org.bookie.app.presentation.tinder.TinderScreen
 import org.bookie.app.theme.BookieTheme
 
 @Composable
@@ -106,6 +107,14 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
                     )
                 }
 
+                surface == AppSurface.TINDER && featureViewModels != null -> {
+                    TinderScreen(
+                        viewModel = featureViewModels.tinder,
+                        onSignIn = featureViewModels.onSignIn,
+                        modifier = contentModifier,
+                    )
+                }
+
                 selectedDestination == AppDestination.PROFILE &&
                         featureViewModels != null -> {
                     ReadingStatsScreen(
@@ -121,6 +130,9 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
                         modifier = contentModifier,
                         onExploreSeries = {
                             selectedSurface = AppSurface.SERIES_DISCOVERY.name
+                        },
+                        onExploreTinder = {
+                            selectedSurface = AppSurface.TINDER.name
                         },
                     )
                 }
@@ -138,12 +150,14 @@ private enum class AppSurface {
     MAIN,
     SERIES_DISCOVERY,
     SERIES_READING,
+    TINDER,
 }
 
 @Composable
 private fun HomePlaceholder(
     modifier: Modifier = Modifier,
     onExploreSeries: () -> Unit,
+    onExploreTinder: () -> Unit,
 ) {
     Column(
         modifier = modifier.padding(24.dp),
@@ -172,6 +186,9 @@ private fun HomePlaceholder(
             modifier = Modifier.padding(top = 16.dp),
         ) {
             Text("Explorar sagas")
+        }
+        Button(onClick = onExploreTinder) {
+            Text("Descubrir libros")
         }
     }
 }
