@@ -107,7 +107,7 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
                     )
                 }
 
-                surface == AppSurface.TINDER && featureViewModels != null -> {
+                surface == AppSurface.TINDER && featureViewModels?.tinder != null -> {
                     TinderScreen(
                         viewModel = featureViewModels.tinder,
                         onSignIn = featureViewModels.onSignIn,
