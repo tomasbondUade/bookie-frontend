@@ -133,9 +133,9 @@ fun App(
                         (featureViewModels != null || tinderViewModel != null) -> {
                     HomePlaceholder(
                         modifier = contentModifier,
-                        onExploreSeries = {
-                            selectedSurface = AppSurface.SERIES_DISCOVERY.name
-                        },
+                        onExploreSeries = if (featureViewModels != null) {
+                            { selectedSurface = AppSurface.SERIES_DISCOVERY.name }
+                        } else null,
                         onExploreTinder = {
                             selectedSurface = AppSurface.TINDER.name
                         },
@@ -165,7 +165,7 @@ private enum class AppSurface {
 @Composable
 private fun HomePlaceholder(
     modifier: Modifier = Modifier,
-    onExploreSeries: () -> Unit,
+    onExploreSeries: (() -> Unit)?,
     onExploreTinder: () -> Unit,
 ) {
     Column(
@@ -190,11 +190,13 @@ private fun HomePlaceholder(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Button(
-            onClick = onExploreSeries,
-            modifier = Modifier.padding(top = 16.dp),
-        ) {
-            Text("Explorar sagas")
+        if (onExploreSeries != null) {
+            Button(
+                onClick = onExploreSeries,
+                modifier = Modifier.padding(top = 16.dp),
+            ) {
+                Text("Explorar sagas")
+            }
         }
         Button(onClick = onExploreTinder) {
             Text("Descubrir libros")
