@@ -10,7 +10,7 @@ data class AppFeatureViewModels(
     val readingStats: ReadingStatsViewModel,
     val seriesExplorer: SeriesExplorerViewModel,
     val seriesReading: SeriesReadingViewModel,
-    val tinder: TinderViewModel,
+    val tinder: TinderViewModel? = null,
     val onSignIn: (() -> Unit)? = null,
     val onOpenBook: (String) -> Unit = {},
 )
