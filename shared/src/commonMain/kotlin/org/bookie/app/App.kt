@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import org.bookie.app.presentation.components.BookieComponentsScreen
 import org.bookie.app.presentation.navigation.AppDestination
 import org.bookie.app.presentation.navigation.AppFeatureViewModels
 import org.bookie.app.presentation.profile.ReadingStatsScreen
@@ -80,6 +81,12 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
                 Modifier.fillMaxSize().padding(contentPadding)
 
             when {
+                surface == AppSurface.COMPONENTS_SHOWCASE -> {
+                    BookieComponentsScreen(
+                        modifier = contentModifier,
+                    )
+                }
+
                 surface == AppSurface.SERIES_DISCOVERY &&
                         featureViewModels != null -> {
                     SeriesExplorerScreen(
@@ -115,12 +122,16 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
                     )
                 }
 
-                selectedDestination == AppDestination.HOME &&
-                        featureViewModels != null -> {
+                selectedDestination == AppDestination.HOME -> {
                     HomePlaceholder(
                         modifier = contentModifier,
                         onExploreSeries = {
-                            selectedSurface = AppSurface.SERIES_DISCOVERY.name
+                            if (featureViewModels != null) {
+                                selectedSurface = AppSurface.SERIES_DISCOVERY.name
+                            }
+                        },
+                        onShowComponents = {
+                            selectedSurface = AppSurface.COMPONENTS_SHOWCASE.name
                         },
                     )
                 }
@@ -138,12 +149,14 @@ private enum class AppSurface {
     MAIN,
     SERIES_DISCOVERY,
     SERIES_READING,
+    COMPONENTS_SHOWCASE,
 }
 
 @Composable
 private fun HomePlaceholder(
     modifier: Modifier = Modifier,
     onExploreSeries: () -> Unit,
+    onShowComponents: () -> Unit,
 ) {
     Column(
         modifier = modifier.padding(24.dp),
@@ -172,6 +185,12 @@ private fun HomePlaceholder(
             modifier = Modifier.padding(top = 16.dp),
         ) {
             Text("Explorar sagas")
+        }
+        Button(
+            onClick = onShowComponents,
+            modifier = Modifier.padding(top = 16.dp),
+        ) {
+            Text("Ver componentes")
         }
     }
 }
