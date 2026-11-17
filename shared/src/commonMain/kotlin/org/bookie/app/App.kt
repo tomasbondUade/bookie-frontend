@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import org.bookie.app.presentation.community.CommunityScreen
 import org.bookie.app.presentation.components.BookieComponentsScreen
 import org.bookie.app.presentation.navigation.AppDestination
 import org.bookie.app.presentation.navigation.AppFeatureViewModels
@@ -55,6 +56,10 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
             rememberConfiguredBookReviewsViewModel()
         } else null
         val bookReviewsViewModel = featureViewModels?.bookReviews ?: fallbackBookReviews
+        val fallbackCommunity = if (featureViewModels?.community == null) {
+            rememberConfiguredCommunityViewModel()
+        } else null
+        val communityViewModel = featureViewModels?.community ?: fallbackCommunity
         val selectedDestination =
             AppDestination.fromRoute(selectedRoute) ?: AppDestination.HOME
         val surface = AppSurface.entries.firstOrNull {
@@ -132,6 +137,17 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
                     } else {
                         Column(modifier = contentModifier.padding(24.dp)) {
                             Text("Explorar por estado de ánimo", style = MaterialTheme.typography.headlineSmall)
+                            Text("Falta configurar la URL del backend Bookie (bookie_api_base_url).")
+                        }
+                    }
+                }
+
+                selectedDestination == AppDestination.COMMUNITY -> {
+                    if (communityViewModel != null) {
+                        CommunityScreen(viewModel = communityViewModel, modifier = contentModifier)
+                    } else {
+                        Column(modifier = contentModifier.padding(24.dp)) {
+                            Text("Comunidades", style = MaterialTheme.typography.headlineSmall)
                             Text("Falta configurar la URL del backend Bookie (bookie_api_base_url).")
                         }
                     }
