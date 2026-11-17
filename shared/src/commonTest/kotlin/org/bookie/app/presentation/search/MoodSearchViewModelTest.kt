@@ -6,6 +6,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -162,11 +163,11 @@ class MoodSearchViewModelTest {
         authRepository = auth,
     )
 
-    private suspend fun selectBook(viewModel: MoodSearchViewModel) {
+    private suspend fun TestScope.selectBook(viewModel: MoodSearchViewModel) {
         viewModel.onQueryChanged("Una aventura")
         viewModel.search()
         // Execute the pending Main coroutine before opening the book detail.
-        kotlinx.coroutines.test.runCurrent()
+        runCurrent()
         val success = assertIs<MoodSearchUiState.Success>(viewModel.uiState.value)
         viewModel.selectBook(success.books.single())
     }
