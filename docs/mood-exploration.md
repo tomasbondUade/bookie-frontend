@@ -46,22 +46,35 @@ message instead of a fake search.
 - iOS: set `BOOKIE_API_BASE_URL` in `iosApp/iosApp/Info.plist`.
 - Use the **reachable API URL**, not a UI/mock hostname. Do not put API host,
   tokens, or secrets in `MainActivity` or DTOs.
-- If a real app composition root already supplies an authenticated
-  `AppFeatureViewModels.moodSearch`, it is used instead of this fallback,
-  so the same shared authenticated Ktor client can perform the library save.
-- The standalone fallback is unauthenticated: searching can work, but saving
-  will receive 401 until auth is wired at the app composition root. Do not
-  mark save-to-library device testing as passed without logging in.
+- The authenticated composition root can supply
+  `AppFeatureViewModels.moodSearch = createAuthenticatedMoodSearchViewModel(authClients)`
+  using the **existing** `AuthClientBundle` from issue #8.
+  That bundle provides the existing `SupabaseAuthRepository` and the JWT-aware
+  `bookieClient` from #34. Its owner is responsible for closing the bundle.
+- MoodSearchViewModel checks the existing `AuthRepository.state`: only
+  `AuthState.SignedIn` can attempt `SaveLibraryState`. All other states
+  display "Iniciá sesión" and **do not send POST /library/state**.
+  Even for a signed-in session, only a confirmed 2xx response shows "guardado".
+  An HTTP 401 returns to the sign-in-required state.
+- The standalone `App()` fallback intentionally remains public-only. There
+  is currently **no login UI/composition root wired into platform entry points**;
+  #27 is owned by another teammate. Until #27 supplies a session, attempting
+  to save displays the sign-in requirement instead of sending an anonymous POST.
+- No changes to existing auth, token storage, Ktor client, `MainActivity.kt`,
+  or the issue #27 login UI are included in #50. Credentials and JWTs are
+  never put into UI state, resources, source control, or logs.
 
 ## Verification
 `./gradlew :shared:testAndroidHostTest :androidApp:assembleDebug`
 
-The feature author reported `BUILD SUCCESSFUL` for the earlier feature commit
-and manually confirmed that mood search returned books on an Android phone
-connected to the local backend via USB. This documentation-only/debug-overlay
-follow-up needs another build check after pulling the new commit.
+The feature author confirmed `BUILD SUCCESSFUL` and that mood discovery
+returned real books on an Android phone connected to the local backend via USB.
+The new auth-guard change needs the same Gradle tests and Android build check.
+New MoodSearchViewModel tests cover signed-out save blocking, confirmed
+server success, and failed/unauthorized saves.
 
 On a device: enter a free-form sentence, check real results, select a book,
-return to results, check blank/empty/error/retry. Verify saving with an
-authenticated composition root and observe server confirmation. Backend
-must be reachable from the device; this repository cannot supply that URL.
+return to results, check blank/empty/error/retry. With a signed-out or public-only session, tap "Guardar en mi biblioteca":
+it must show a sign-in message and not send a request. After the #27 login
+integration, verify authenticated saving against a backend that checks
+Supabase JWTs; this device flow is **not** claimed as verified today.

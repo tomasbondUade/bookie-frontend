@@ -6,16 +6,21 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.bookie.app.domain.model.AuthState
 import org.bookie.app.domain.model.LibraryStateInput
 import org.bookie.app.domain.model.LibraryStatus
 import org.bookie.app.domain.model.MoodBook
+import org.bookie.app.domain.repository.AuthRepository
 import org.bookie.app.domain.result.Resource
+import org.bookie.app.domain.result.ResourceErrorKind
 import org.bookie.app.domain.usecase.SaveLibraryState
 import org.bookie.app.domain.usecase.SearchBooksByMood
 
 class MoodSearchViewModel(
     private val searchBooksByMood: SearchBooksByMood,
     private val saveLibraryState: SaveLibraryState,
+    /** Uses the existing Supabase session contract from #8; null for public-only discovery. */
+    private val authRepository: AuthRepository? = null,
 ) : ViewModel() {
     private val _query = MutableStateFlow("")
     val query = _query.asStateFlow()
@@ -83,6 +88,12 @@ class MoodSearchViewModel(
     fun saveSelectedBook() {
         val selected = (_uiState.value as? MoodSearchUiState.Success)?.selectedBook ?: return
         if (_saveState.value is MoodSaveUiState.Saving || _saveState.value is MoodSaveUiState.Saved) return
+        // Public discovery is always available. Library writes require a real logged-in
+        // session AND the JWT-aware Ktor client assembled by #8/#34 (not the fallback).
+        if (authRepository?.state?.value !is AuthState.SignedIn) {
+            _saveState.value = MoodSaveUiState.SignInRequired
+            return
+        }
         val bookId = selected.book.id // Internal backend ID, not Google Books ID.
         _saveState.value = MoodSaveUiState.Saving
 
@@ -102,7 +113,14 @@ class MoodSearchViewModel(
                 // Only report saved after the backend confirms the write.
                 _saveState.value = when (result) {
                     is Resource.Success -> MoodSaveUiState.Saved
-                    is Resource.Error -> MoodSaveUiState.Error(result.message)
+                    is Resource.Error -> if (
+                        result.kind == ResourceErrorKind.UNAUTHORIZED ||
+                        result.message.contains("HTTP 401")
+                    ) {
+                        MoodSaveUiState.SignInRequired
+                    } else {
+                        MoodSaveUiState.Error(result.message)
+                    }
                 }
             }
         }

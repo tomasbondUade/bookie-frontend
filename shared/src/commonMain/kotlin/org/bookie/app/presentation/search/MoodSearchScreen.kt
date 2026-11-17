@@ -48,6 +48,10 @@ fun MoodSearchScreen(
                 MoodSaveUiState.Idle -> Unit
                 MoodSaveUiState.Saving -> Text("Guardando libro...")
                 MoodSaveUiState.Saved -> Text("Libro guardado en tu biblioteca.")
+                MoodSaveUiState.SignInRequired -> Text(
+                    "Iniciá sesión para guardar este libro en tu biblioteca.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 is MoodSaveUiState.Error -> Text(
                     currentSave.message,
                     color = MaterialTheme.colorScheme.error,

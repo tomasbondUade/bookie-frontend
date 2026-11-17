@@ -17,5 +17,6 @@ sealed interface MoodSaveUiState {
     data object Idle : MoodSaveUiState
     data object Saving : MoodSaveUiState
     data object Saved : MoodSaveUiState
+    data object SignInRequired : MoodSaveUiState
     data class Error(val message: String) : MoodSaveUiState
 }
