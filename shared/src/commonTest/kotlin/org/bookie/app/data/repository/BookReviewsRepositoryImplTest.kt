@@ -20,11 +20,15 @@ class BookReviewsRepositoryImplTest {
     @Test
     fun parsesPageAndUsesInternalBookIdAndSort() = runTest {
         var requestedPath = ""
-        var requestedQuery = ""
+        var requestedPage: String? = null
+        var requestedLimit: String? = null
+        var requestedSort: String? = null
         val client = createBookieHttpClient(
             MockEngine { request ->
                 requestedPath = request.url.encodedPath
-                requestedQuery = request.url.parameters.toString()
+                requestedPage = request.url.parameters["page"]
+                requestedLimit = request.url.parameters["limit"]
+                requestedSort = request.url.parameters["sort"]
                 respond(
                     content = """{
                         "data": [{
@@ -54,9 +58,9 @@ class BookReviewsRepositoryImplTest {
             ).data as org.bookie.app.domain.model.BookReviewsPage
 
             assertEquals("/books/book-123/reviews", requestedPath)
-            assertTrue(requestedQuery.contains("page=2"))
-            assertTrue(requestedQuery.contains("limit=10"))
-            assertTrue(requestedQuery.contains("sort=top"))
+            assertEquals("2", requestedPage)
+            assertEquals("10", requestedLimit)
+            assertEquals("top", requestedSort)
             assertEquals("Lectora", page.reviews.first().username)
             assertEquals(5, page.reviews.first().rating)
             assertEquals("Muy recomendado", page.reviews.first().comment)
