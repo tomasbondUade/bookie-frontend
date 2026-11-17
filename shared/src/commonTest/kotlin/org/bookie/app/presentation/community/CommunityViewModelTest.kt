@@ -13,11 +13,14 @@ import org.bookie.app.domain.model.AuthState
 import org.bookie.app.domain.model.Community
 import org.bookie.app.domain.model.CommunityPage
 import org.bookie.app.domain.model.CommunityPost
+import org.bookie.app.domain.model.CreateCommunityInput
 import org.bookie.app.domain.model.PostAuthor
 import org.bookie.app.domain.repository.AuthRepository
 import org.bookie.app.domain.repository.CommunityPostsRepository
 import org.bookie.app.domain.repository.CommunityRepository
 import org.bookie.app.domain.result.Resource
+import org.bookie.app.domain.result.ResourceErrorKind
+import org.bookie.app.domain.usecase.CreateCommunity
 import org.bookie.app.domain.usecase.GetCommunities
 import org.bookie.app.domain.usecase.GetCommunityPosts
 import org.bookie.app.domain.usecase.GetRecommendedCommunities
@@ -100,9 +103,99 @@ class CommunityViewModelTest {
         assertEquals(CommunityPostsState.Empty, vm.posts.value)
     }
 
+
+    @Test
+    fun guestCannotCreateCommunityOrSendPost() = runTest {
+        val repo = FakeRepository()
+        val vm = viewModel(repo)
+        vm.openCreate()
+        vm.onCreateNameChanged("Grupo de libros")
+        vm.onCreateDescriptionChanged("Una comunidad pública")
+        vm.submitCreate()
+        runCurrent()
+
+        assertTrue(vm.create.value.signInRequired)
+        assertEquals(0, repo.createCalls)
+        assertEquals(null, vm.selected.value)
+    }
+
+    @Test
+    fun formValidatesMissingFieldsWithoutSendingRequests() = runTest {
+        val repo = FakeRepository()
+        val vm = viewModel(repo, FakeAuth())
+        vm.openCreate()
+        vm.onCreateNameChanged("   ")
+        vm.onCreateDescriptionChanged("Descripción")
+        vm.submitCreate()
+        runCurrent()
+
+        assertTrue(vm.create.value.error?.contains("nombre") == true)
+        assertEquals(0, repo.createCalls)
+    }
+
+    @Test
+    fun successfulCreateSelectsServerConfirmedCommunity() = runTest {
+        val repo = FakeRepository()
+        val vm = viewModel(repo, FakeAuth())
+        vm.openCreate()
+        vm.onCreateNameChanged("  Nuevos lectores  ")
+        vm.onCreateDescriptionChanged("  Compartimos recomendaciones  ")
+        vm.submitCreate()
+        assertTrue(vm.create.value.saving)
+        assertEquals(null, vm.selected.value)
+        runCurrent()
+
+        assertEquals(1, repo.createCalls)
+        assertEquals(
+            CreateCommunityInput("Nuevos lectores", "Compartimos recomendaciones"),
+            repo.lastCreateInput,
+        )
+        assertEquals("created-1", vm.selected.value?.id)
+        assertEquals(false, vm.create.value.visible)
+        assertIs<CommunityPostsState.Ready>(vm.posts.value)
+    }
+
+    @Test
+    fun serverErrorsDoNotCloseFormOrInventCommunity() = runTest {
+        val repo = FakeRepository()
+        repo.createResult = Resource.Error("HTTP 409", ResourceErrorKind.CONFLICT)
+        val vm = viewModel(repo, FakeAuth())
+        vm.openCreate()
+        vm.onCreateNameChanged("Duplicada")
+        vm.onCreateDescriptionChanged("Comunidad existente")
+        vm.submitCreate()
+        runCurrent()
+
+        assertEquals(null, vm.selected.value)
+        assertTrue(vm.create.value.visible)
+        assertEquals("Ya existe una comunidad con ese nombre.", vm.create.value.error)
+        assertEquals(false, vm.create.value.saving)
+
+        repo.createResult = Resource.Error("HTTP 401", ResourceErrorKind.UNAUTHORIZED)
+        vm.submitCreate()
+        runCurrent()
+        assertTrue(vm.create.value.signInRequired)
+        assertEquals(null, vm.selected.value)
+    }
+
+    @Test
+    fun closingFormPreservesPublicCatalogAndResetsDraft() = runTest {
+        val repo = FakeRepository()
+        val vm = viewModel(repo)
+        vm.loadCommunities()
+        runCurrent()
+        vm.openCreate()
+        vm.onCreateNameChanged("Draft")
+        vm.closeCreate()
+        assertEquals(false, vm.create.value.visible)
+        assertEquals("", vm.create.value.name)
+        assertIs<CommunityCatalogState.Ready>(vm.catalog.value)
+    }
+
     private fun viewModel(repo: FakeRepository, auth: AuthRepository? = null) =
         CommunityViewModel(
             getCommunities = GetCommunities(repo),
+            createCommunity = CreateCommunity(repo),
             getRecommended = GetRecommendedCommunities(repo),
             getPosts = GetCommunityPosts(repo),
             authRepository = auth,
@@ -119,6 +212,9 @@ class CommunityViewModelTest {
         var recommendationCalls = 0
         var failPosts = false
         var emptyPosts = false
+        var createCalls = 0
+        var lastCreateInput: CreateCommunityInput? = null
+        var createResult: Resource<Community>? = null
 
         override suspend fun listCommunities(page: Int, limit: Int): Resource<CommunityPage> {
             requestedPages += page
@@ -131,6 +227,14 @@ class CommunityViewModelTest {
         override suspend fun recommended(): Resource<List<Community>> {
             recommendationCalls++
             return Resource.Success(listOf(community("c1")))
+        }
+
+        override suspend fun createCommunity(input: CreateCommunityInput): Resource<Community> {
+            createCalls++
+            lastCreateInput = input
+            return createResult ?: Resource.Success(
+                community("created-1").copy(name = input.name, description = input.description),
+            )
         }
 
         override suspend fun getPosts(communityId: String, limit: Int): Resource<List<CommunityPost>> {
