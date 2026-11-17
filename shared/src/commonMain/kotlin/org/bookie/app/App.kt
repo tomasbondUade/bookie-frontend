@@ -32,6 +32,7 @@ import org.bookie.app.presentation.components.BookieComponentsScreen
 import org.bookie.app.presentation.navigation.AppDestination
 import org.bookie.app.presentation.navigation.AppFeatureViewModels
 import org.bookie.app.presentation.profile.ReadingStatsScreen
+import org.bookie.app.presentation.search.MoodSearchScreen
 import org.bookie.app.presentation.series.SeriesExplorerScreen
 import org.bookie.app.presentation.series.SeriesReadingScreen
 import org.bookie.app.theme.BookieTheme
@@ -46,6 +47,10 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
         var selectedSurface by rememberSaveable {
             mutableStateOf(AppSurface.MAIN.name)
         }
+        val fallbackMoodSearch = if (featureViewModels?.moodSearch == null) {
+            rememberConfiguredMoodSearchViewModel()
+        } else null
+        val moodSearchViewModel = featureViewModels?.moodSearch ?: fallbackMoodSearch
         val selectedDestination =
             AppDestination.fromRoute(selectedRoute) ?: AppDestination.HOME
         val surface = AppSurface.entries.firstOrNull {
@@ -111,6 +116,17 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
                         },
                         modifier = contentModifier,
                     )
+                }
+
+                selectedDestination == AppDestination.SEARCH -> {
+                    if (moodSearchViewModel != null) {
+                        MoodSearchScreen(viewModel = moodSearchViewModel, modifier = contentModifier)
+                    } else {
+                        Column(modifier = contentModifier.padding(24.dp)) {
+                            Text("Explorar por estado de ánimo", style = MaterialTheme.typography.headlineSmall)
+                            Text("Falta configurar la URL del backend Bookie (bookie_api_base_url).")
+                        }
+                    }
                 }
 
                 selectedDestination == AppDestination.PROFILE &&

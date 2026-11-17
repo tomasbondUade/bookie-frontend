@@ -14,4 +14,5 @@ data class BookDto(
     val previewLink: String? = null,
     val infoLink: String? = null,
     val buyLink: String? = null,
+    val relevance: Double? = null, // /books/mood; absent in ordinary search
 )

@@ -128,7 +128,7 @@ private fun BookResult(
 }
 
 @Composable
-private fun BookDetail(
+internal fun BookDetail(
     book: Book,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
