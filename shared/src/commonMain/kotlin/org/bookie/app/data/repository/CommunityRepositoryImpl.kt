@@ -7,7 +7,6 @@ import org.bookie.app.data.remote.toApiError
 import org.bookie.app.data.remote.toMessage
 import org.bookie.app.domain.model.Community
 import org.bookie.app.domain.model.CommunityPage
-import org.bookie.app.domain.model.CommunityPost
 import org.bookie.app.domain.repository.CommunityRepository
 import org.bookie.app.domain.result.Resource
 import org.bookie.app.domain.result.ResourceErrorKind
@@ -30,21 +29,6 @@ class CommunityRepositoryImpl(private val remote: CommunityRemoteDataSource) :
     override suspend fun recommended(): Resource<List<Community>> =
         resource { remote.recommended().map(CommunityDto::toDomain) }
 
-    override suspend fun posts(
-        communityId: String,
-        limit: Int,
-    ): Resource<List<CommunityPost>> = resource {
-        remote.posts(communityId, limit).map { post ->
-            CommunityPost(
-                id = post.id,
-                title = post.title,
-                content = post.content,
-                communityId = post.communityId,
-                createdAt = post.createdAt,
-                authorName = post.author?.username,
-            )
-        }
-    }
 
     private suspend fun <T> resource(action: suspend () -> T): Resource<T> =
         try {

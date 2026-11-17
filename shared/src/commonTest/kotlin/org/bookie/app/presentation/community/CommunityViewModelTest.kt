@@ -13,7 +13,9 @@ import org.bookie.app.domain.model.AuthState
 import org.bookie.app.domain.model.Community
 import org.bookie.app.domain.model.CommunityPage
 import org.bookie.app.domain.model.CommunityPost
+import org.bookie.app.domain.model.PostAuthor
 import org.bookie.app.domain.repository.AuthRepository
+import org.bookie.app.domain.repository.CommunityPostsRepository
 import org.bookie.app.domain.repository.CommunityRepository
 import org.bookie.app.domain.result.Resource
 import org.bookie.app.domain.usecase.GetCommunities
@@ -112,7 +114,7 @@ class CommunityViewModelTest {
         createdAt = "2026-11-17T10:00:00Z",
     )
 
-    private inner class FakeRepository : CommunityRepository {
+    private inner class FakeRepository : CommunityRepository, CommunityPostsRepository {
         val requestedPages = mutableListOf<Int>()
         var recommendationCalls = 0
         var failPosts = false
@@ -131,15 +133,20 @@ class CommunityViewModelTest {
             return Resource.Success(listOf(community("c1")))
         }
 
-        override suspend fun posts(communityId: String, limit: Int): Resource<List<CommunityPost>> {
+        override suspend fun getPosts(communityId: String, limit: Int): Resource<List<CommunityPost>> {
             if (failPosts) return Resource.Error("Sin conexión")
             if (emptyPosts) return Resource.Success(emptyList())
             return Resource.Success(listOf(CommunityPost(
                 id = "p1", title = "Hola", content = "Contenido",
-                communityId = communityId, createdAt = "2026-11-17T11:00:00Z",
-                authorName = "Lectora",
+                communityId = communityId, authorId = "author-1",
+                createdAt = "2026-11-17T11:00:00Z",
+                author = PostAuthor("author-1", "Lectora", null),
             )))
         }
+        override suspend fun createPost(
+            communityId: String,
+            input: org.bookie.app.domain.model.CreateCommunityPostInput,
+        ): Resource<CommunityPost> = Resource.Error("No se usa")
     }
 
     private class FakeAuth : AuthRepository {

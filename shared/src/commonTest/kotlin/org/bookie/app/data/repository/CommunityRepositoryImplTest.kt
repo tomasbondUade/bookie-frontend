@@ -7,6 +7,8 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlinx.coroutines.test.runTest
 import org.bookie.app.data.remote.BookieHttpClientConfig
+import org.bookie.app.data.remote.AccessTokenProvider
+import org.bookie.app.data.remote.KtorCommunityPostsRemoteDataSource
 import org.bookie.app.data.remote.KtorCommunityRemoteDataSource
 import org.bookie.app.data.remote.createBookieHttpClient
 import org.bookie.app.domain.result.Resource
@@ -76,7 +78,7 @@ class CommunityRepositoryImplTest {
                 } else {
                     """[{
                         "id":"post-1","title":"Hola","content":"Una lectura",
-                        "communityId":"community-1",
+                        "communityId":"community-1","authorId":"author-1",
                         "createdAt":"2026-11-17T12:00:00Z",
                         "author":{"id":"author-1","username":"Lectora","avatarUrl":null}
                     }]"""
@@ -93,9 +95,16 @@ class CommunityRepositoryImplTest {
             val community = rec.single() as org.bookie.app.domain.model.Community
             assertEquals(1, community.score)
             assertEquals(listOf("fantasia"), community.matchedTags)
-            val posts = assertIs<Resource.Success<*>>(repo.posts("community-1")).data
+            val postsRepository = CommunityPostsRepositoryImpl(
+                KtorCommunityPostsRemoteDataSource(client),
+                AccessTokenProvider { null },
+            )
+            val posts = assertIs<Resource.Success<*>>(postsRepository.getPosts("community-1")).data
                 as List<*>
-            assertEquals("Lectora", (posts.single() as org.bookie.app.domain.model.CommunityPost).authorName)
+            assertEquals(
+                "Lectora",
+                (posts.single() as org.bookie.app.domain.model.CommunityPost).author?.username,
+            )
             assertEquals(
                 listOf("/communities/recommended", "/communities/community-1/posts"),
                 requestedPaths,

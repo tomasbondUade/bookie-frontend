@@ -21,12 +21,3 @@ data class CommunityPage(
     val total: Int,
     val totalPages: Int,
 )
-
-data class CommunityPost(
-    val id: String,
-    val title: String,
-    val content: String,
-    val communityId: String,
-    val createdAt: String,
-    val authorName: String?,
-)

@@ -10,8 +10,3 @@ class GetCommunities(private val repository: CommunityRepository) {
 class GetRecommendedCommunities(private val repository: CommunityRepository) {
     suspend operator fun invoke() = repository.recommended()
 }
-
-class GetCommunityPosts(private val repository: CommunityRepository) {
-    suspend operator fun invoke(communityId: String, limit: Int = 20) =
-        repository.posts(communityId, limit)
-}

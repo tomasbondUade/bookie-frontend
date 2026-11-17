@@ -65,7 +65,7 @@ fun CommunityScreen(
                                 verticalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
                                 Text(post.title, style = MaterialTheme.typography.titleMedium)
-                                post.authorName?.let { Text("Por $it", style = MaterialTheme.typography.labelMedium) }
+                                post.author?.username?.let { Text("Por $it", style = MaterialTheme.typography.labelMedium) }
                                 Text(post.content)
                                 Text(post.createdAt.substringBefore('T'), style = MaterialTheme.typography.labelSmall)
                             }

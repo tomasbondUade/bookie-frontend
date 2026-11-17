@@ -29,20 +29,3 @@ data class CommunityMetaDto(
     val total: Int,
     val totalPages: Int,
 )
-
-@Serializable
-data class CommunityPostDto(
-    val id: String,
-    val title: String,
-    val content: String,
-    val communityId: String,
-    val createdAt: String,
-    val author: CommunityPostAuthorDto? = null,
-)
-
-@Serializable
-data class CommunityPostAuthorDto(
-    val id: String,
-    val username: String,
-    val avatarUrl: String? = null,
-)

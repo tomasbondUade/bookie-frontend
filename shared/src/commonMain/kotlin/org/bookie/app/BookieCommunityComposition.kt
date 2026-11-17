@@ -5,8 +5,11 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import org.bookie.app.data.auth.AuthClientBundle
 import org.bookie.app.data.remote.BookieHttpClientConfig
+import org.bookie.app.data.remote.AccessTokenProvider
+import org.bookie.app.data.remote.KtorCommunityPostsRemoteDataSource
 import org.bookie.app.data.remote.KtorCommunityRemoteDataSource
 import org.bookie.app.data.remote.createPlatformHttpClient
+import org.bookie.app.data.repository.CommunityPostsRepositoryImpl
 import org.bookie.app.data.repository.CommunityRepositoryImpl
 import org.bookie.app.domain.repository.AuthRepository
 import org.bookie.app.domain.usecase.GetCommunities
@@ -27,24 +30,28 @@ internal fun rememberConfiguredCommunityViewModel(): CommunityViewModel? {
 
     DisposableEffect(client) { onDispose { client.close() } }
 
-    return remember(client) { makeCommunityViewModel(client, null) }
+    return remember(client) { makeCommunityViewModel(client, null, AccessTokenProvider { null }) }
 }
 
 /** Use the authenticated client's existing JWT provider from #8/#34.
  * Supply through AppFeatureViewModels.community after the #27 login integration.
  */
 fun createAuthenticatedCommunityViewModel(bundle: AuthClientBundle): CommunityViewModel =
-    makeCommunityViewModel(bundle.bookieClient, bundle.repository)
+    makeCommunityViewModel(bundle.bookieClient, bundle.repository, bundle.repository)
 
 private fun makeCommunityViewModel(
     client: HttpClient,
     auth: AuthRepository?,
+    tokenProvider: AccessTokenProvider,
 ): CommunityViewModel {
     val repository = CommunityRepositoryImpl(KtorCommunityRemoteDataSource(client))
+    val postsRepository = CommunityPostsRepositoryImpl(
+        KtorCommunityPostsRemoteDataSource(client), tokenProvider,
+    )
     return CommunityViewModel(
         getCommunities = GetCommunities(repository),
         getRecommended = GetRecommendedCommunities(repository),
-        getPosts = GetCommunityPosts(repository),
+        getPosts = GetCommunityPosts(postsRepository),
         authRepository = auth,
     )
 }
