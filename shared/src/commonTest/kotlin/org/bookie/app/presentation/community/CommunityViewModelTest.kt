@@ -100,7 +100,7 @@ class CommunityViewModelTest {
         assertEquals(CommunityPostsState.Empty, vm.posts.value)
     }
 
-    private fun viewModel(repo: CommunityRepository, auth: AuthRepository? = null) =
+    private fun viewModel(repo: FakeRepository, auth: AuthRepository? = null) =
         CommunityViewModel(
             getCommunities = GetCommunities(repo),
             getRecommended = GetRecommendedCommunities(repo),
