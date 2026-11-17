@@ -3,10 +3,12 @@ package org.bookie.app.data.repository
 import org.bookie.app.data.remote.ApiError
 import org.bookie.app.data.remote.CommunityRemoteDataSource
 import org.bookie.app.data.remote.dto.CommunityDto
+import org.bookie.app.data.remote.dto.CreateCommunityDto
 import org.bookie.app.data.remote.toApiError
 import org.bookie.app.data.remote.toMessage
 import org.bookie.app.domain.model.Community
 import org.bookie.app.domain.model.CommunityPage
+import org.bookie.app.domain.model.CreateCommunityInput
 import org.bookie.app.domain.repository.CommunityRepository
 import org.bookie.app.domain.result.Resource
 import org.bookie.app.domain.result.ResourceErrorKind
@@ -29,6 +31,16 @@ class CommunityRepositoryImpl(private val remote: CommunityRemoteDataSource) :
     override suspend fun recommended(): Resource<List<Community>> =
         resource { remote.recommended().map(CommunityDto::toDomain) }
 
+    override suspend fun createCommunity(input: CreateCommunityInput): Resource<Community> =
+        resource {
+            remote.createCommunity(
+                CreateCommunityDto(
+                    name = input.name.trim(),
+                    description = input.description.trim(),
+                ),
+            ).toDomain()
+        }
+
 
     private suspend fun <T> resource(action: suspend () -> T): Resource<T> =
         try {
@@ -37,9 +49,18 @@ class CommunityRepositoryImpl(private val remote: CommunityRemoteDataSource) :
             val apiError = error.toApiError()
             Resource.Error(
                 message = apiError.toMessage(),
-                kind = if (apiError is ApiError.Http && apiError.statusCode == 401) {
-                    ResourceErrorKind.UNAUTHORIZED
-                } else ResourceErrorKind.GENERAL,
+                kind = when (apiError) {
+                    is ApiError.Http -> when (apiError.statusCode) {
+                        400 -> ResourceErrorKind.VALIDATION
+                        401 -> ResourceErrorKind.UNAUTHORIZED
+                        403 -> ResourceErrorKind.FORBIDDEN
+                        404 -> ResourceErrorKind.NOT_FOUND
+                        409 -> ResourceErrorKind.CONFLICT
+                        else -> ResourceErrorKind.GENERAL
+                    }
+                    ApiError.Network, ApiError.Timeout -> ResourceErrorKind.NETWORK
+                    else -> ResourceErrorKind.GENERAL
+                },
             )
         }
 }
