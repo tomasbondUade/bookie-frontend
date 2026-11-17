@@ -31,8 +31,18 @@ ViewModels. The standalone discovery fallback therefore uses the existing
 resource. Without this URL, the Search tab shows an explicit configuration
 message instead of a fake search.
 
-- Android: set `bookie_api_base_url` in
-  `androidApp/src/main/res/values/bookie_api_config.xml`.
+- Android **debug**: the default `bookie_api_base_url` is
+  `http://127.0.0.1:3000` in `androidApp/src/debug/res/values/bookie_api_config.xml`.
+  Connect the device by USB and execute `adb reverse tcp:3000 tcp:3000` so
+  each developer's own local backend can be reached without an individual IP.
+  This works with Android Studio's emulator too; `http://10.0.2.2:3000` is
+  an alternative emulator-only host mapping.
+- Android **release/main**: the value is intentionally blank until the real
+  deployed HTTPS address is known. Do not commit development HTTP URLs or
+  cleartext permissions to the main manifest; the debug overlay is isolated.
+- The backend must run with PostgreSQL+pgvector and books with embeddings.
+  Verify it locally with `curl -G http://localhost:3000/books/mood
+  --data-urlencode "q=Una aventura"` before running the app.
 - iOS: set `BOOKIE_API_BASE_URL` in `iosApp/iosApp/Info.plist`.
 - Use the **reachable API URL**, not a UI/mock hostname. Do not put API host,
   tokens, or secrets in `MainActivity` or DTOs.
@@ -43,8 +53,13 @@ message instead of a fake search.
   will receive 401 until auth is wired at the app composition root. Do not
   mark save-to-library device testing as passed without logging in.
 
-## Verification (not yet executed against a live backend)
+## Verification
 `./gradlew :shared:testAndroidHostTest :androidApp:assembleDebug`
+
+The feature author reported `BUILD SUCCESSFUL` for the earlier feature commit
+and manually confirmed that mood search returned books on an Android phone
+connected to the local backend via USB. This documentation-only/debug-overlay
+follow-up needs another build check after pulling the new commit.
 
 On a device: enter a free-form sentence, check real results, select a book,
 return to results, check blank/empty/error/retry. Verify saving with an
