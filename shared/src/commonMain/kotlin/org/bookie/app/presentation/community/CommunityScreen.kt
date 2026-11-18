@@ -32,6 +32,7 @@ fun CommunityScreen(
     val recommendations by viewModel.recommendations.collectAsStateWithLifecycle()
     val selected by viewModel.selected.collectAsStateWithLifecycle()
     val posts by viewModel.posts.collectAsStateWithLifecycle()
+    val create by viewModel.create.collectAsStateWithLifecycle()
 
     LaunchedEffect(viewModel) { viewModel.loadCommunities() }
 
@@ -39,7 +40,40 @@ fun CommunityScreen(
         modifier = modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        if (selected != null) {
+        if (create.visible) {
+            Text("Crear comunidad", style = MaterialTheme.typography.headlineSmall)
+            org.bookie.app.presentation.components.BookieTextField(
+                value = create.name,
+                onValueChange = viewModel::onCreateNameChanged,
+                label = "Nombre",
+                placeholder = "Ej: Lectores de fantasía",
+                enabled = !create.saving,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            androidx.compose.material3.OutlinedTextField(
+                value = create.description,
+                onValueChange = viewModel::onCreateDescriptionChanged,
+                label = { Text("Descripción") },
+                minLines = 3,
+                enabled = !create.saving,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            create.error?.let { message ->
+                Text(message, color = MaterialTheme.colorScheme.error)
+            }
+            if (create.signInRequired) {
+                Text("Iniciá sesión para crear una comunidad.")
+            }
+            Button(
+                onClick = viewModel::submitCreate,
+                enabled = !create.saving,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text(if (create.saving) "Creando comunidad..." else "Crear comunidad") }
+            TextButton(
+                onClick = viewModel::closeCreate,
+                enabled = !create.saving,
+            ) { Text("Cancelar") }
+        } else if (selected != null) {
             TextButton(onClick = viewModel::showCommunities) { Text("Volver a comunidades") }
             Text(selected!!.name, style = MaterialTheme.typography.headlineSmall)
             Text(selected!!.description)
@@ -75,6 +109,10 @@ fun CommunityScreen(
             }
         } else {
             Text("Comunidades", style = MaterialTheme.typography.headlineSmall)
+            Button(
+                onClick = viewModel::openCreate,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Crear comunidad") }
             Button(
                 onClick = viewModel::loadRecommendations,
                 modifier = Modifier.fillMaxWidth(),

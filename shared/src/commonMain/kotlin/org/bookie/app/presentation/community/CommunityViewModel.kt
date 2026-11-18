@@ -9,15 +9,18 @@ import kotlinx.coroutines.launch
 import org.bookie.app.domain.model.AuthState
 import org.bookie.app.domain.model.Community
 import org.bookie.app.domain.model.CommunityPost
+import org.bookie.app.domain.model.CreateCommunityInput
 import org.bookie.app.domain.repository.AuthRepository
 import org.bookie.app.domain.result.Resource
 import org.bookie.app.domain.result.ResourceErrorKind
+import org.bookie.app.domain.usecase.CreateCommunity
 import org.bookie.app.domain.usecase.GetCommunities
 import org.bookie.app.domain.usecase.GetCommunityPosts
 import org.bookie.app.domain.usecase.GetRecommendedCommunities
 
 class CommunityViewModel(
     private val getCommunities: GetCommunities,
+    private val createCommunity: CreateCommunity,
     private val getRecommended: GetRecommendedCommunities,
     private val getPosts: GetCommunityPosts,
     private val authRepository: AuthRepository? = null,
@@ -35,9 +38,95 @@ class CommunityViewModel(
     private val mutablePosts = MutableStateFlow<CommunityPostsState>(CommunityPostsState.Idle)
     val posts = mutablePosts.asStateFlow()
 
+    private val mutableCreate = MutableStateFlow(CommunityCreateUiState())
+    val create = mutableCreate.asStateFlow()
+    private var createVersion = 0L
+
     private var catalogVersion = 0L
     private var recommendationsVersion = 0L
     private var postsVersion = 0L
+
+    fun openCreate() {
+        mutableCreate.value = CommunityCreateUiState(visible = true)
+    }
+
+    fun closeCreate() {
+        if (mutableCreate.value.saving) return
+        createVersion++
+        mutableCreate.value = CommunityCreateUiState()
+    }
+
+    fun onCreateNameChanged(value: String) {
+        if (mutableCreate.value.saving) return
+        mutableCreate.value = mutableCreate.value.copy(
+            name = value, error = null, signInRequired = false,
+        )
+    }
+
+    fun onCreateDescriptionChanged(value: String) {
+        if (mutableCreate.value.saving) return
+        mutableCreate.value = mutableCreate.value.copy(
+            description = value, error = null, signInRequired = false,
+        )
+    }
+
+    fun submitCreate() {
+        val current = mutableCreate.value
+        if (!current.visible || current.saving) return
+        val name = current.name.trim()
+        val description = current.description.trim()
+        if (name.isBlank() || description.isBlank()) {
+            mutableCreate.value = current.copy(
+                error = "Completá el nombre y la descripción.",
+                signInRequired = false,
+            )
+            return
+        }
+        // Public community browsing must not accidentally send an unauthorized POST.
+        if (authRepository?.state?.value !is AuthState.SignedIn) {
+            mutableCreate.value = current.copy(
+                error = null, signInRequired = true,
+            )
+            return
+        }
+        val version = ++createVersion
+        mutableCreate.value = current.copy(saving = true, error = null, signInRequired = false)
+        viewModelScope.launch {
+            val result = try {
+                createCommunity(CreateCommunityInput(name, description))
+            } catch (cancel: CancellationException) {
+                throw cancel
+            } catch (error: Exception) {
+                Resource.Error(error.message ?: "No se pudo crear la comunidad.")
+            }
+            if (version != createVersion) return@launch
+            when (result) {
+                is Resource.Success -> {
+                    // Only a confirmed POST may alter the UI as if creation succeeded.
+                    mutableCreate.value = CommunityCreateUiState()
+                    catalogVersion++
+                    mutableCatalog.value = CommunityCatalogState.Idle
+                    loadCommunities()
+                    selectCommunity(result.data)
+                }
+                is Resource.Error -> {
+                    val requiresLogin = result.kind == ResourceErrorKind.UNAUTHORIZED ||
+                        result.message.contains("HTTP 401")
+                    val message = when (result.kind) {
+                        ResourceErrorKind.CONFLICT -> "Ya existe una comunidad con ese nombre."
+                        ResourceErrorKind.VALIDATION -> "Revisá el nombre y la descripción."
+                        ResourceErrorKind.NETWORK -> "Sin conexión. Reintentá cuando tengas internet."
+                        else -> result.message
+                    }
+                    mutableCreate.value = mutableCreate.value.copy(
+                        saving = false,
+                        error = if (requiresLogin) null else message,
+                        signInRequired = requiresLogin,
+                    )
+                }
+            }
+        }
+    }
 
     fun loadCommunities() {
         if (mutableCatalog.value !is CommunityCatalogState.Idle) return
@@ -186,3 +275,12 @@ sealed interface CommunityPostsState {
     data class Error(val message: String) : CommunityPostsState
     data class Ready(val posts: List<CommunityPost>) : CommunityPostsState
 }
+
+data class CommunityCreateUiState(
+    val visible: Boolean = false,
+    val name: String = "",
+    val description: String = "",
+    val saving: Boolean = false,
+    val error: String? = null,
+    val signInRequired: Boolean = false,
+)
