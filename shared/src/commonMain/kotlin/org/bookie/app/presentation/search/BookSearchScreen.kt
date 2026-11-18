@@ -32,6 +32,7 @@ import org.bookie.app.domain.model.Book
 fun BookSearchScreen(
     viewModel: SearchViewModel,
     modifier: Modifier = Modifier,
+    reviewsViewModel: BookReviewsViewModel? = null,
 ) {
     val query by viewModel.query.collectAsStateWithLifecycle()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -79,6 +80,7 @@ fun BookSearchScreen(
                         book = currentState.selectedBook,
                         onBack = viewModel::showResults,
                         modifier = Modifier.weight(1f),
+                        reviewsViewModel = reviewsViewModel,
                     )
                 } else {
                     LazyColumn(
@@ -132,6 +134,7 @@ internal fun BookDetail(
     book: Book,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    reviewsViewModel: BookReviewsViewModel? = null,
 ) {
     val uriHandler = LocalUriHandler.current
 
@@ -167,6 +170,9 @@ internal fun BookDetail(
             TextButton(onClick = { uriHandler.openUri(url) }) {
                 Text("Comprar")
             }
+        }
+        reviewsViewModel?.let { viewModel ->
+            BookReviewsSection(bookId = book.id, viewModel = viewModel)
         }
     }
 }

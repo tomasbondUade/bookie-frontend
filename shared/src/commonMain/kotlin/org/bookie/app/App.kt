@@ -51,6 +51,10 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
             rememberConfiguredMoodSearchViewModel()
         } else null
         val moodSearchViewModel = featureViewModels?.moodSearch ?: fallbackMoodSearch
+        val fallbackBookReviews = if (featureViewModels?.bookReviews == null) {
+            rememberConfiguredBookReviewsViewModel()
+        } else null
+        val bookReviewsViewModel = featureViewModels?.bookReviews ?: fallbackBookReviews
         val selectedDestination =
             AppDestination.fromRoute(selectedRoute) ?: AppDestination.HOME
         val surface = AppSurface.entries.firstOrNull {
@@ -120,7 +124,11 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
 
                 selectedDestination == AppDestination.SEARCH -> {
                     if (moodSearchViewModel != null) {
-                        MoodSearchScreen(viewModel = moodSearchViewModel, modifier = contentModifier)
+                        MoodSearchScreen(
+                            viewModel = moodSearchViewModel,
+                            modifier = contentModifier,
+                            reviewsViewModel = bookReviewsViewModel,
+                        )
                     } else {
                         Column(modifier = contentModifier.padding(24.dp)) {
                             Text("Explorar por estado de ánimo", style = MaterialTheme.typography.headlineSmall)

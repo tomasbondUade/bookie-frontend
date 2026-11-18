@@ -25,6 +25,7 @@ import org.bookie.app.presentation.components.BookieTextField
 fun MoodSearchScreen(
     viewModel: MoodSearchViewModel,
     modifier: Modifier = Modifier,
+    reviewsViewModel: BookReviewsViewModel? = null,
 ) {
     val query by viewModel.query.collectAsStateWithLifecycle()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -43,6 +44,7 @@ fun MoodSearchScreen(
                 book = selected.book,
                 onBack = viewModel::showResults,
                 modifier = Modifier.weight(1f),
+                reviewsViewModel = reviewsViewModel,
             )
             when (val currentSave = saveState) {
                 MoodSaveUiState.Idle -> Unit
