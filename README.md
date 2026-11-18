@@ -57,6 +57,48 @@ On macOS, open `iosApp/iosApp.xcodeproj` in Xcode, select the `iosApp` scheme an
 
 The iOS Xcode build and simulator tests require macOS. The iOS simulator target configured by Gradle is `iosSimulatorArm64`.
 
+## Local backend for mood search (Android debug)
+
+Mood search (#50) calls the existing backend endpoint
+`GET /books/mood?q=<free text>`. It does **not** use mock results.
+The app's Search tab needs an API URL reachable from the device.
+
+For local development, the checked-in Android **debug** resource sets
+`bookie_api_base_url` to `http://127.0.0.1:3000`. This is a loopback
+address, **not anyone's personal IP**. Each developer can run their
+own Bookie backend and connect by USB:
+
+1. Start the backend and PostgreSQL according to the
+   [backend getting-started guide](https://github.com/tomasbondUade/bookie-backend/blob/main/docu/getting_started.md).
+   Apply Prisma migrations and load the normal `seed:books` (which generates
+   vector embeddings). The fast seed does not generate these embeddings.
+2. Verify the API from the Mac/PC:
+   `curl -G http://localhost:3000/books/mood --data-urlencode "q=Una aventura emocionante"`.
+   It should return a JSON array (empty if no books with embeddings).
+3. Connect an Android device by USB with USB debugging and run
+   `adb reverse tcp:3000 tcp:3000`. You may need the full Android SDK
+   platform-tools path if `adb` is not on `PATH`.
+4. Run the `androidApp` **debug** configuration from Android Studio and
+   open **Buscar**. The command `adb reverse` must be repeated after the
+   device disconnects or restarts.
+
+For an Android emulator, the same `adb reverse` approach works.
+Alternatively, change the **debug** resource to
+`http://10.0.2.2:3000` for the standard Android emulator mapping.
+
+These settings live only in `androidApp/src/debug/`:
+`AndroidManifest.xml` permits HTTP traffic for debug builds;
+`res/values/bookie_api_config.xml` supplies the loopback API URL.
+The main manifest remains unchanged and the main resource contains
+**no production backend URL**. Never put tokens, credentials or
+machine-specific LAN addresses into source control.
+
+For deployed builds, configure a publicly reachable HTTPS backend URL
+in the application environment before release. The library **save**
+action additionally requires a logged-in session and an authenticated
+shared client; discovery itself is public. See
+[the mood discovery notes](docs/mood-exploration.md) for details.
+
 ## Contribution conventions
 
 - Keep Kotlin packages under the base package `org.bookie.app`. Use lowercase, dot-separated package names that match the source directory.

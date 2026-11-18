@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Public backend URL, e.g. https://your-backend.example.com. No secrets here. -->
+    <string name="bookie_api_base_url" translatable="false"></string>
+</resources>
