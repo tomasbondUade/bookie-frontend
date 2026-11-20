@@ -27,6 +27,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.bookie.app.domain.model.SeriesCatalogEntry
@@ -46,7 +47,8 @@ fun SeriesExplorerScreen(
         modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("Explorar sagas", style = MaterialTheme.typography.headlineSmall)
+        Text("SAGAS Y SERIES", style = MaterialTheme.typography.titleLarge,
+            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         if (state.selectedUniverseId != null) {
             TextButton(onClick = viewModel::clearUniverseSelection) { Text("Volver a universos") }
             UniverseDetailContent(

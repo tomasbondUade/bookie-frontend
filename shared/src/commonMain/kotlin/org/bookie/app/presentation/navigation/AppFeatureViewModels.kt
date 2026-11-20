@@ -2,12 +2,16 @@ package org.bookie.app.presentation.navigation
 
 import org.bookie.app.presentation.auth.AuthViewModel
 import org.bookie.app.presentation.community.CommunityViewModel
+import org.bookie.app.presentation.community.CommunityPostsViewModel
 import org.bookie.app.presentation.library.LibraryExperienceViewModel
 import org.bookie.app.presentation.lists.BookListsViewModel
 import org.bookie.app.presentation.profile.ReadingStatsViewModel
+import org.bookie.app.presentation.progress.ReadingProgressViewModel
+import org.bookie.app.domain.model.LibraryBookState
 import org.bookie.app.presentation.preferences.ReadingPreferencesViewModel
 import org.bookie.app.presentation.search.BookReviewsViewModel
 import org.bookie.app.presentation.search.MoodSearchViewModel
+import org.bookie.app.presentation.search.SearchViewModel
 import org.bookie.app.presentation.series.SeriesExplorerViewModel
 import org.bookie.app.presentation.series.SeriesReadingViewModel
 import org.bookie.app.presentation.tinder.BookTinderViewModel
@@ -22,11 +26,14 @@ data class AppFeatureViewModels(
     val onSignIn: (() -> Unit)? = null,
     val onOpenBook: (String) -> Unit = {},
     val moodSearch: MoodSearchViewModel? = null,
+    val bookSearch: SearchViewModel? = null,
     val bookReviews: BookReviewsViewModel? = null,
     val community: CommunityViewModel? = null,
+    val createCommunityPostsViewModel: ((String) -> CommunityPostsViewModel)? = null,
     val auth: AuthViewModel? = null,
     val readingPreferences: ReadingPreferencesViewModel? = null,
     val libraryExperience: LibraryExperienceViewModel? = null,
+    val createReadingProgressViewModel: ((LibraryBookState) -> ReadingProgressViewModel)? = null,
     val bookLists: BookListsViewModel? = null,
     val bookTinder: BookTinderViewModel? = null,
     val readingCompatibility: ReadingCompatibilityViewModel? = null,

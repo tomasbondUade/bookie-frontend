@@ -2,20 +2,28 @@ package org.bookie.app.presentation.search
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.Card
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.bookie.app.presentation.components.BookieBookCard
+import org.bookie.app.presentation.components.BookCover
+import org.bookie.app.domain.model.Book
+import org.bookie.app.presentation.library.LibraryActionState
 import org.bookie.app.presentation.components.BookieEmptyState
 import org.bookie.app.presentation.components.BookieErrorState
 import org.bookie.app.presentation.components.BookieLoadingState
@@ -26,6 +34,9 @@ fun MoodSearchScreen(
     viewModel: MoodSearchViewModel,
     modifier: Modifier = Modifier,
     reviewsViewModel: BookReviewsViewModel? = null,
+    onSignIn: (() -> Unit)? = null,
+    onRateBook: ((Book, Int) -> Unit)? = null,
+    libraryAction: LibraryActionState? = null,
 ) {
     val query by viewModel.query.collectAsStateWithLifecycle()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -36,7 +47,8 @@ fun MoodSearchScreen(
         modifier = modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text("Descubrí tu próxima lectura", style = MaterialTheme.typography.headlineSmall)
+        if (selected == null) Text("POR ÁNIMO", style = MaterialTheme.typography.titleLarge,
+            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
 
         if (selected != null) {
             // Reuses #3's existing catalog detail instead of duplicating its fields/links.
@@ -45,6 +57,8 @@ fun MoodSearchScreen(
                 onBack = viewModel::showResults,
                 modifier = Modifier.weight(1f),
                 reviewsViewModel = reviewsViewModel,
+                onRateBook = onRateBook,
+                libraryAction = libraryAction,
             )
             when (val currentSave = saveState) {
                 MoodSaveUiState.Idle -> Unit
@@ -66,6 +80,13 @@ fun MoodSearchScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("Guardar en mi biblioteca")
+            }
+            if (saveState is MoodSaveUiState.SignInRequired) {
+                onSignIn?.let { signIn ->
+                    Button(onClick = signIn, modifier = Modifier.fillMaxWidth()) {
+                        Text("Iniciar sesión")
+                    }
+                }
             }
         } else {
             BookieTextField(
@@ -96,12 +117,15 @@ fun MoodSearchScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(current.books, key = { it.book.id }) { result ->
-                        BookieBookCard(
-                            title = result.book.title,
-                            author = result.book.authors.joinToString()
-                                .ifBlank { "Autor desconocido" },
-                            onClick = { viewModel.selectBook(result) },
-                        )
+                        Card(onClick = { viewModel.selectBook(result) }, modifier = Modifier.fillMaxWidth()) {
+                            Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                BookCover(result.book, Modifier.size(width = 64.dp, height = 88.dp))
+                                Column(modifier = Modifier.padding(start = 12.dp)) {
+                                    Text(result.book.title, style = MaterialTheme.typography.titleMedium)
+                                    Text(result.book.authors.joinToString().ifBlank { "Autor desconocido" })
+                                }
+                            }
+                        }
                     }
                 }
             }

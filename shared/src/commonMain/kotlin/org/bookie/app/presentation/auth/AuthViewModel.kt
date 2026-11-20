@@ -12,7 +12,10 @@ import org.bookie.app.domain.usecase.RestoreAuthSession
 import org.bookie.app.domain.usecase.SignIn
 import org.bookie.app.domain.usecase.SignUp
 
-class AuthViewModel(repository: AuthRepository) : ViewModel() {
+class AuthViewModel(
+    private val repository: AuthRepository,
+    private val clearAccountCache: suspend (String) -> Unit = {},
+) : ViewModel() {
     private val restoreSession = RestoreAuthSession(repository)
     private val signIn = SignIn(repository)
     private val signUp = SignUp(repository)
@@ -90,6 +93,24 @@ class AuthViewModel(repository: AuthRepository) : ViewModel() {
         }
     }
 
+    fun signOut() {
+        val userId = (mutableUiState.value as? AuthUiState.SignedIn)?.userId
+        if (userId.isNullOrBlank()) return
+        mutableUiState.value = AuthUiState.Submitting(AuthMode.SIGN_IN)
+        viewModelScope.launch {
+            val nextState = try {
+                val result = repository.signOut()
+                clearAccountCache(userId)
+                result.toUiState()
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                AuthUiState.Form(error = exception.message ?: "No se pudo cerrar la sesión.")
+            }
+            mutableUiState.value = nextState
+        }
+    }
+
     private fun updateForm(update: AuthUiState.Form.() -> AuthUiState.Form) {
         val current = mutableUiState.value as? AuthUiState.Form ?: return
         mutableUiState.value = current.update()
@@ -101,7 +122,7 @@ class AuthViewModel(repository: AuthRepository) : ViewModel() {
             is AuthState.EmailVerificationRequired -> AuthUiState.EmailVerificationRequired(email)
             is AuthState.Error -> previous.copy(error = message)
             AuthState.Expired -> previous.copy(error = "Tu sesión venció. Iniciá sesión nuevamente.")
-            AuthState.SignedOut -> previous
+            AuthState.SignedOut -> AuthUiState.Form()
             AuthState.Loading -> AuthUiState.Submitting(previous.mode)
         }
 

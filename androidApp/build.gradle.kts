@@ -1,4 +1,28 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
+
+val localProperties = Properties().apply {
+    rootProject.file("local.properties").takeIf { it.isFile }?.inputStream()?.use(::load)
+}
+
+fun appConfig(property: String, environment: String): String =
+    System.getenv(environment)?.takeIf(String::isNotBlank)
+        ?: localProperties.getProperty(property, "")
+
+fun buildConfigString(value: String): String =
+    "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+
+val bookieApiBaseUrl = appConfig("bookieApiBaseUrl", "BOOKIE_API_BASE_URL")
+val supabaseUrl = appConfig("supabaseUrl", "SUPABASE_URL")
+val supabasePublishableKey = appConfig("supabasePublishableKey", "SUPABASE_PUBLISHABLE_KEY")
+val bookieCommunityId = appConfig("bookieCommunityId", "BOOKIE_COMMUNITY_ID")
+
+require(!supabasePublishableKey.startsWith("sb_secret_", ignoreCase = true)) {
+    "SUPABASE_PUBLISHABLE_KEY must not be a Supabase secret key."
+}
+require(!supabasePublishableKey.contains("service_role", ignoreCase = true)) {
+    "SUPABASE_PUBLISHABLE_KEY must not be a service_role key."
+}
 
 buildscript {
     dependencies {
@@ -47,6 +71,10 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
+        buildConfigField("String", "BOOKIE_API_BASE_URL", buildConfigString(bookieApiBaseUrl))
+        buildConfigField("String", "SUPABASE_URL", buildConfigString(supabaseUrl))
+        buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", buildConfigString(supabasePublishableKey))
+        buildConfigField("String", "BOOKIE_COMMUNITY_ID", buildConfigString(bookieCommunityId))
     }
     packaging {
         resources {
@@ -68,5 +96,6 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
