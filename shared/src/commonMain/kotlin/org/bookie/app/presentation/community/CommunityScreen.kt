@@ -35,6 +35,7 @@ import org.bookie.app.domain.model.CommunityComment
 import org.bookie.app.presentation.components.BookieEmptyState
 import org.bookie.app.presentation.components.BookieErrorState
 import org.bookie.app.presentation.components.BookieLoadingState
+import org.bookie.app.SystemBackHandler
 
 @Composable
 fun CommunityScreen(
@@ -57,6 +58,9 @@ fun CommunityScreen(
     var selectedPostId by rememberSaveable { mutableStateOf<String?>(null) }
     val selectedPost = (posts as? CommunityPostsState.Ready)?.posts
         ?.firstOrNull { it.id == selectedPostId }
+    SystemBackHandler(enabled = selectedPostId != null) {
+        selectedPostId = null
+    }
     val postsViewModel = selected?.id?.let { communityId ->
         remember(communityId, postsViewModelFactory) { postsViewModelFactory?.invoke(communityId) }
     }
