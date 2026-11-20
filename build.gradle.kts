@@ -15,6 +15,7 @@ buildscript {
         "org.bouncycastle:bcpkix-jdk18on:1.86",
         "org.bouncycastle:bcprov-jdk18on:1.86",
         "org.bouncycastle:bcutil-jdk18on:1.86",
+        "com.google.guava:guava:33.7.2-jre",
         "com.google.protobuf:protobuf-java:4.36.2",
         "com.google.protobuf:protobuf-kotlin:4.36.2",
         "io.opentelemetry:opentelemetry-api:1.67.0",
