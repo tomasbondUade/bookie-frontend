@@ -21,9 +21,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -95,10 +92,11 @@ fun LibraryScreen(
                     BookieLoadingState(message = "Actualizando biblioteca...")
                 } else {
                     Text("Actualizando desde el servidor...")
-                    LibraryResults(content.previous.copy(stale = true), writing, viewModel)
+                    LibraryResults(content.previous.copy(stale = true), state.drafts, writing, viewModel)
                 }
             }
-            is LibraryContentState.Ready -> LibraryResults(content.snapshot, writing, viewModel)
+            is LibraryContentState.Ready ->
+                LibraryResults(content.snapshot, state.drafts, writing, viewModel)
             is LibraryContentState.Empty -> {
                 if (content.stale) {
                     Text("Datos guardados localmente; podrían estar desactualizados.")
@@ -148,6 +146,7 @@ fun LibraryNotConnectedScreen(
 @Composable
 private fun LibraryResults(
     snapshot: LibrarySnapshot,
+    drafts: Map<String, LibraryEditDraft>,
     writing: Boolean,
     viewModel: LibraryExperienceViewModel,
 ) {
@@ -167,7 +166,7 @@ private fun LibraryResults(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         items(snapshot.entries, key = LibraryBookState::id) { entry ->
-            LibraryBookCard(entry, writing, viewModel)
+            LibraryBookCard(entry, drafts[entry.id], writing, viewModel)
         }
         if (snapshot.canLoadMore) {
             item {
@@ -186,12 +185,14 @@ private fun LibraryResults(
 @Composable
 private fun LibraryBookCard(
     entry: LibraryBookState,
+    draft: LibraryEditDraft?,
     writing: Boolean,
     viewModel: LibraryExperienceViewModel,
 ) {
-    var pageDraft by remember(entry.id, entry.updatedAt) { mutableStateOf("") }
-    var percentageDraft by remember(entry.id, entry.updatedAt) { mutableStateOf("") }
-    var localError by remember(entry.id, entry.updatedAt) { mutableStateOf<String?>(null) }
+    val selectedStatus = draft?.status ?: entry.status
+    val editableProgress = selectedStatus == LibraryStatus.READING
+    val pageText = draft?.pageText ?: entry.currentPage?.toString().orEmpty()
+    val percentageText = draft?.percentageText ?: entry.progressPercentage?.toString().orEmpty()
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -203,18 +204,29 @@ private fun LibraryBookCard(
                 Text(entry.book.authors.joinToString(", "), style = MaterialTheme.typography.bodySmall)
             }
             Text("Estado actual: " + entry.status.libraryLabel())
+            Text(
+                "Elegí un estado; el cambio se confirma al tocar Guardar cambios.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             Row(
                 modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 LibraryStatus.entries.forEach { status ->
                     FilterChip(
-                        selected = entry.status == status,
-                        onClick = { viewModel.changeStatus(entry.bookId, status) },
-                        enabled = !writing && entry.status != status,
+                        selected = selectedStatus == status,
+                        onClick = { viewModel.selectDraftStatus(entry.id, status) },
+                        enabled = !writing,
                         label = { Text(status.libraryLabel()) },
                     )
                 }
+            }
+            if (draft != null && draft.status != entry.status) {
+                Text(
+                    "Estado elegido: " + selectedStatus.libraryLabel() + " (sin guardar)",
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
             TextButton(
                 onClick = {
@@ -228,49 +240,58 @@ private fun LibraryBookCard(
                 Text(if (entry.isFavorite) "★ Quitar favorito" else "☆ Marcar favorito")
             }
             Text(
-                "Progreso: " + (entry.progressPercentage?.toString()?.plus("%") ?: "sin porcentaje") +
+                "Progreso registrado: " +
+                    (entry.progressPercentage?.toString()?.plus("%") ?: "sin porcentaje") +
                     " · Página: " + (entry.currentPage?.toString() ?: "sin registrar"),
                 style = MaterialTheme.typography.bodySmall,
             )
-            OutlinedTextField(
-                value = pageDraft,
-                onValueChange = { value ->
-                    if (value.all(Char::isDigit)) { pageDraft = value; localError = null }
-                },
-                label = { Text("Nueva página (opcional)") },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !writing,
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            )
-            OutlinedTextField(
-                value = percentageDraft,
-                onValueChange = { value ->
-                    if (value.all(Char::isDigit)) { percentageDraft = value; localError = null }
-                },
-                label = { Text("Nuevo porcentaje 0-100 (opcional)") },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !writing,
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            )
-            localError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            Button(
-                enabled = !writing,
-                onClick = {
-                    val page = pageDraft.toIntOrNull()
-                    val percentage = percentageDraft.toIntOrNull()
-                    if ((page == null && percentage == null) ||
-                        (pageDraft.isNotEmpty() && page == null) ||
-                        (percentageDraft.isNotEmpty() && percentage == null) ||
-                        (percentage != null && percentage !in 0..100)
-                    ) {
-                        localError = "Ingresá una página válida o un porcentaje entre 0 y 100."
+            if (editableProgress) {
+                Text(
+                    "En estado Leyendo podés ingresar una página o porcentaje antes de guardar.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = pageText,
+                    onValueChange = { viewModel.editDraftPage(entry.id, it) },
+                    label = { Text("Página leída (opcional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !writing,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                )
+                OutlinedTextField(
+                    value = percentageText,
+                    onValueChange = { viewModel.editDraftPercentage(entry.id, it) },
+                    label = { Text("Progreso 0-100% (opcional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !writing,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                )
+            } else {
+                Text(
+                    if (selectedStatus == LibraryStatus.READ) {
+                        "Libro terminado: no se puede editar el progreso."
                     } else {
-                        viewModel.updateProgress(entry.bookId, page, percentage)
-                    }
-                },
-            ) { Text("Guardar progreso") }
+                        "Para editar el progreso, elegí Leyendo."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    enabled = !writing && draft?.hasChangesFrom(entry) == true,
+                    onClick = { viewModel.saveDraft(entry.id) },
+                ) { Text("Guardar cambios") }
+                if (draft != null) {
+                    TextButton(
+                        onClick = { viewModel.discardDraft(entry.id) },
+                        enabled = !writing,
+                    ) { Text("Cancelar") }
+                }
+            }
         }
     }
 }
