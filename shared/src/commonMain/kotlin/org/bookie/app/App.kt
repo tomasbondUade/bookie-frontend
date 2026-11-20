@@ -297,7 +297,7 @@ private fun MainAppContent(
                     ReadingStatsScreen(
                         viewModel = profileStats,
                         modifier = contentModifier,
-                        onSessionExpired = featureViewModels.onSignIn,
+                        onSessionExpired = featureViewModels?.onSignIn,
                         onEditPreferences = profilePreferences?.let { preferences ->
                             {
                                 preferences.beginEdit()
