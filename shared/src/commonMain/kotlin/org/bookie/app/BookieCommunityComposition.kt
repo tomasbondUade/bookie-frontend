@@ -35,7 +35,7 @@ internal fun rememberConfiguredCommunityViewModel(): CommunityViewModel? {
 }
 
 /** Use the authenticated client's existing JWT provider from #8/#34.
- * Supply through AppFeatureViewModels.community after the #27 login integration.
+ * Supply through AppFeatureViewModels.community alongside the shared auth ViewModel.
  */
 fun createAuthenticatedCommunityViewModel(bundle: AuthClientBundle): CommunityViewModel =
     makeCommunityViewModel(bundle.bookieClient, bundle.repository, bundle.repository)
