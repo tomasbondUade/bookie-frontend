@@ -20,6 +20,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -41,6 +43,8 @@ import org.bookie.app.presentation.lists.LibraryWorkspaceScreen
 import org.bookie.app.presentation.navigation.AppDestination
 import org.bookie.app.presentation.navigation.AppFeatureViewModels
 import org.bookie.app.presentation.profile.ReadingStatsScreen
+import org.bookie.app.presentation.profile.AccountScreen
+import org.bookie.app.presentation.search.MoodSearchViewModel
 import org.bookie.app.presentation.preferences.ReadingPreferencesScreen
 import org.bookie.app.presentation.preferences.ReadingPreferencesUiState
 import org.bookie.app.presentation.search.MoodSearchScreen
@@ -53,7 +57,16 @@ import org.bookie.app.theme.BookieTheme
 @Preview
 fun App(featureViewModels: AppFeatureViewModels? = null) {
     BookieTheme {
-        val authViewModel = featureViewModels?.auth
+        val configuredAccount = if (featureViewModels?.auth == null) {
+            rememberConfiguredAccountExperience()
+        } else null
+        val authViewModel = featureViewModels?.auth ?: configuredAccount?.authViewModel
+        val configuredSearch = if (configuredAccount != null) {
+            remember(configuredAccount) { configuredAccount.moodSearchViewModel() }
+        } else null
+        val configuredLibrary = if (configuredAccount != null) {
+            remember(configuredAccount) { configuredAccount.libraryViewModel() }
+        } else null
         if (authViewModel == null) {
             MainAppContent(featureViewModels)
         } else {
@@ -80,10 +93,15 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
                     onSignIn = featureViewModels.onSignIn,
                 )
             } else {
-                MainAppContent(
-                    featureViewModels = featureViewModels,
-                    currentUserId = (authState as? AuthUiState.SignedIn)?.userId,
-                )
+                key((authState as AuthUiState.SignedIn).userId) {
+                    MainAppContent(
+                        featureViewModels = featureViewModels,
+                        currentUserId = authState.userId,
+                        accountViewModel = authViewModel,
+                        configuredMoodSearch = configuredSearch,
+                        configuredLibraryViewModel = configuredLibrary,
+                    )
+                }
             }
         }
     }
@@ -93,6 +111,9 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
 private fun MainAppContent(
     featureViewModels: AppFeatureViewModels?,
     currentUserId: String? = null,
+    accountViewModel: org.bookie.app.presentation.auth.AuthViewModel? = null,
+    configuredMoodSearch: MoodSearchViewModel? = null,
+    configuredLibraryViewModel: org.bookie.app.presentation.library.LibraryExperienceViewModel? = null,
 ) {
     var selectedRoute by rememberSaveable {
             mutableStateOf(AppDestination.HOME.route)
@@ -100,10 +121,10 @@ private fun MainAppContent(
     var selectedSurface by rememberSaveable {
             mutableStateOf(AppSurface.MAIN.name)
         }
-    val fallbackMoodSearch = if (featureViewModels?.moodSearch == null) {
+    val fallbackMoodSearch = if (featureViewModels?.moodSearch == null && configuredMoodSearch == null) {
             rememberConfiguredMoodSearchViewModel()
         } else null
-    val moodSearchViewModel = featureViewModels?.moodSearch ?: fallbackMoodSearch
+    val moodSearchViewModel = featureViewModels?.moodSearch ?: configuredMoodSearch ?: fallbackMoodSearch
     val fallbackBookReviews = if (featureViewModels?.bookReviews == null) {
             rememberConfiguredBookReviewsViewModel()
         } else null
@@ -253,6 +274,43 @@ private fun MainAppContent(
                     LibraryExperienceScreen(featureViewModels.libraryExperience, contentModifier)
                 }
 
+                selectedDestination == AppDestination.LIBRARY &&
+                        featureViewModels?.libraryExperience == null &&
+                        configuredLibraryViewModel != null -> {
+                    LibraryExperienceScreen(configuredLibraryViewModel, contentModifier)
+                }
+
+                surface == AppSurface.READING_STATS && featureViewModels != null -> {
+                    ReadingStatsScreen(
+                        viewModel = featureViewModels.readingStats,
+                        modifier = contentModifier,
+                        onSessionExpired = featureViewModels.onSignIn,
+                        onEditPreferences = featureViewModels.readingPreferences?.let { preferences ->
+                            {
+                                preferences.beginEdit()
+                                selectedSurface = AppSurface.PREFERENCES.name
+                            }
+                        },
+                    )
+                }
+
+                selectedDestination == AppDestination.PROFILE && accountViewModel != null &&
+                        surface == AppSurface.MAIN -> {
+                    AccountScreen(
+                        authViewModel = accountViewModel,
+                        onOpenStatistics = if (featureViewModels != null) {
+                            { selectedSurface = AppSurface.READING_STATS.name }
+                        } else null,
+                        onOpenPreferences = featureViewModels?.readingPreferences?.let { preferences ->
+                            {
+                                preferences.beginEdit()
+                                selectedSurface = AppSurface.PREFERENCES.name
+                            }
+                        },
+                        modifier = contentModifier,
+                    )
+                }
+
                 surface == AppSurface.PREFERENCES &&
                         featureViewModels?.readingPreferences != null -> {
                     ReadingPreferencesScreen(
@@ -316,6 +374,7 @@ private enum class AppSurface {
     BOOK_TINDER,
     READING_CHALLENGES,
     PREFERENCES,
+    READING_STATS,
     COMPONENTS_SHOWCASE,
 }
 
