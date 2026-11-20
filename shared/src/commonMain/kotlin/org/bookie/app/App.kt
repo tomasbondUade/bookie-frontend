@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.bookie.app.presentation.auth.AuthScreen
 import org.bookie.app.presentation.auth.AuthUiState
+import org.bookie.app.presentation.challenges.ReadingChallengesScreen
 import org.bookie.app.presentation.community.CommunityScreen
 import org.bookie.app.presentation.components.BookieComponentsScreen
 import org.bookie.app.presentation.library.LibraryExperienceScreen
@@ -161,6 +162,16 @@ private fun MainAppContent(
                     )
                 }
 
+                surface == AppSurface.READING_CHALLENGES &&
+                        featureViewModels?.readingChallenges != null -> {
+                    ReadingChallengesScreen(
+                        viewModel = featureViewModels.readingChallenges,
+                        onSignIn = featureViewModels.onSignIn,
+                        onBack = { selectedSurface = AppSurface.MAIN.name },
+                        modifier = contentModifier,
+                    )
+                }
+
                 surface == AppSurface.SERIES_DISCOVERY &&
                         featureViewModels != null -> {
                     SeriesExplorerScreen(
@@ -281,6 +292,9 @@ private fun MainAppContent(
                         onExploreTinder = if (featureViewModels?.bookTinder != null) {
                             { selectedSurface = AppSurface.BOOK_TINDER.name }
                         } else null,
+                        onExploreChallenges = if (featureViewModels?.readingChallenges != null) {
+                            { selectedSurface = AppSurface.READING_CHALLENGES.name }
+                        } else null,
                         onShowComponents = {
                             selectedSurface = AppSurface.COMPONENTS_SHOWCASE.name
                         },
@@ -300,6 +314,7 @@ private enum class AppSurface {
     SERIES_DISCOVERY,
     SERIES_READING,
     BOOK_TINDER,
+    READING_CHALLENGES,
     PREFERENCES,
     COMPONENTS_SHOWCASE,
 }
@@ -309,6 +324,7 @@ private fun HomePlaceholder(
     modifier: Modifier = Modifier,
     onExploreSeries: () -> Unit,
     onExploreTinder: (() -> Unit)?,
+    onExploreChallenges: (() -> Unit)?,
     onShowComponents: () -> Unit,
 ) {
     Column(
@@ -345,6 +361,14 @@ private fun HomePlaceholder(
                 modifier = Modifier.padding(top = 16.dp),
             ) {
                 Text("Tinder de libros")
+            }
+        }
+        onExploreChallenges?.let { openChallenges ->
+            Button(
+                onClick = openChallenges,
+                modifier = Modifier.padding(top = 16.dp),
+            ) {
+                Text("Retos de lectura")
             }
         }
         Button(
