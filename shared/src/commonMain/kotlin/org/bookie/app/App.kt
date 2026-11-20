@@ -45,6 +45,7 @@ import org.bookie.app.presentation.preferences.ReadingPreferencesUiState
 import org.bookie.app.presentation.search.MoodSearchScreen
 import org.bookie.app.presentation.series.SeriesExplorerScreen
 import org.bookie.app.presentation.series.SeriesReadingScreen
+import org.bookie.app.presentation.tinder.BookTinderScreen
 import org.bookie.app.theme.BookieTheme
 
 @Composable
@@ -141,6 +142,15 @@ private fun MainAppContent(featureViewModels: AppFeatureViewModels?) {
         when {
                 surface == AppSurface.COMPONENTS_SHOWCASE -> {
                     BookieComponentsScreen(
+                        modifier = contentModifier,
+                    )
+                }
+
+                surface == AppSurface.BOOK_TINDER && featureViewModels?.bookTinder != null -> {
+                    BookTinderScreen(
+                        viewModel = featureViewModels.bookTinder,
+                        onSignIn = featureViewModels.onSignIn,
+                        onBack = { selectedSurface = AppSurface.MAIN.name },
                         modifier = contentModifier,
                     )
                 }
@@ -256,6 +266,9 @@ private fun MainAppContent(featureViewModels: AppFeatureViewModels?) {
                                 selectedSurface = AppSurface.SERIES_DISCOVERY.name
                             }
                         },
+                        onExploreTinder = if (featureViewModels?.bookTinder != null) {
+                            { selectedSurface = AppSurface.BOOK_TINDER.name }
+                        } else null,
                         onShowComponents = {
                             selectedSurface = AppSurface.COMPONENTS_SHOWCASE.name
                         },
@@ -274,6 +287,7 @@ private enum class AppSurface {
     MAIN,
     SERIES_DISCOVERY,
     SERIES_READING,
+    BOOK_TINDER,
     PREFERENCES,
     COMPONENTS_SHOWCASE,
 }
@@ -282,6 +296,7 @@ private enum class AppSurface {
 private fun HomePlaceholder(
     modifier: Modifier = Modifier,
     onExploreSeries: () -> Unit,
+    onExploreTinder: (() -> Unit)?,
     onShowComponents: () -> Unit,
 ) {
     Column(
@@ -311,6 +326,14 @@ private fun HomePlaceholder(
             modifier = Modifier.padding(top = 16.dp),
         ) {
             Text("Explorar sagas")
+        }
+        onExploreTinder?.let { openTinder ->
+            Button(
+                onClick = openTinder,
+                modifier = Modifier.padding(top = 16.dp),
+            ) {
+                Text("Tinder de libros")
+            }
         }
         Button(
             onClick = onShowComponents,
