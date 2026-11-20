@@ -98,3 +98,31 @@ The backend `.env` must point to **the same** local Supabase
 to test real login + user-specific library. Install the debug APK again
 after creating the local Android resource. The resource is public-client
 config (not a service_role key) but should still remain local.
+
+## Shared session for search-to-library writes (#32)
+
+The default `App()` path uses its existing `ConfiguredLibraryExperience`
+to create **both** `LibraryExperienceViewModel` and
+`createAuthenticatedMoodSearchViewModel(authClients)`. These share one
+`AuthClientBundle`, `SupabaseAuthRepository` and JWT-aware
+`bookieClient`. Public Search remains usable even while signed out,
+but `Guardar en mi biblioteca` returns `SignInRequired` unless the same
+repository's `AuthState` is `SignedIn`.
+
+After logging into Biblioteca, opening Buscar, selecting a book and tapping
+Guardar sends `POST /library/state` with the existing JWT. Only the backend's
+successful response displays `Libro guardado en tu biblioteca`. Returning to
+Biblioteca triggers the existing `refresh()`, so the new book is reloaded
+Online First from cache and server.
+
+The standalone public search fallback is only used when the Supabase local
+configuration is absent; `AppFeatureViewModels.moodSearch` still has priority
+for fully injected app configurations. No MainActivity or token handling changes.
+
+Manual verification: sign in via Biblioteca -> Buscar -> choose a book ->
+Guardar -> Biblioteca -> see book -> airplane mode / stop backend ->
+Actualizar -> previous cache is shown with stale warning. Test the reverse
+ADB ports 3000 and 54321 when using a local server.
+
+Session cleanup/account switching still belongs to #63; do not claim those
+flows are covered here.

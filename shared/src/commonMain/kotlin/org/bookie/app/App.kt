@@ -92,10 +92,23 @@ private fun MainAppContent(featureViewModels: AppFeatureViewModels?) {
     var selectedSurface by rememberSaveable {
             mutableStateOf(AppSurface.MAIN.name)
         }
-    val fallbackMoodSearch = if (featureViewModels?.moodSearch == null) {
-            rememberConfiguredMoodSearchViewModel()
-        } else null
-    val moodSearchViewModel = featureViewModels?.moodSearch ?: fallbackMoodSearch
+    // Both Biblioteca and Buscar use the same authenticated client and session.
+    // The public-only fallback is retained when Supabase is not configured.
+    val configuredLibrary = if (featureViewModels == null) {
+        rememberConfiguredLibraryExperience()
+    } else null
+    val authenticatedMoodSearch = if (
+        featureViewModels?.moodSearch == null && configuredLibrary != null
+    ) {
+        remember(configuredLibrary) { configuredLibrary.moodSearchViewModel() }
+    } else null
+    val fallbackMoodSearch = if (
+        featureViewModels?.moodSearch == null && configuredLibrary == null
+    ) {
+        rememberConfiguredMoodSearchViewModel()
+    } else null
+    val moodSearchViewModel =
+        featureViewModels?.moodSearch ?: authenticatedMoodSearch ?: fallbackMoodSearch
     val fallbackBookReviews = if (featureViewModels?.bookReviews == null) {
             rememberConfiguredBookReviewsViewModel()
         } else null
@@ -104,11 +117,6 @@ private fun MainAppContent(featureViewModels: AppFeatureViewModels?) {
             rememberConfiguredCommunityViewModel()
         } else null
     val communityViewModel = featureViewModels?.community ?: fallbackCommunity
-    // The current Android/iOS entry points call App() without injecting feature ViewModels.
-    // Use the existing AuthClientBundle + account-scoped SQLDelight cache if configured.
-    val configuredLibrary = if (featureViewModels == null) {
-        rememberConfiguredLibraryExperience()
-    } else null
     val selectedDestination =
             AppDestination.fromRoute(selectedRoute) ?: AppDestination.HOME
     val surface = AppSurface.entries.firstOrNull {
