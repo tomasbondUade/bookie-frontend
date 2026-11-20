@@ -19,6 +19,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -36,6 +37,8 @@ import org.bookie.app.presentation.components.BookieComponentsScreen
 import org.bookie.app.presentation.navigation.AppDestination
 import org.bookie.app.presentation.navigation.AppFeatureViewModels
 import org.bookie.app.presentation.profile.ReadingStatsScreen
+import org.bookie.app.presentation.preferences.ReadingPreferencesScreen
+import org.bookie.app.presentation.preferences.ReadingPreferencesUiState
 import org.bookie.app.presentation.search.MoodSearchScreen
 import org.bookie.app.presentation.series.SeriesExplorerScreen
 import org.bookie.app.presentation.series.SeriesReadingScreen
@@ -50,8 +53,27 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
             MainAppContent(featureViewModels)
         } else {
             val authState by authViewModel.uiState.collectAsStateWithLifecycle()
+            val preferencesViewModel = featureViewModels.readingPreferences
+            val preferencesState = preferencesViewModel?.uiState?.collectAsStateWithLifecycle()
+
+            LaunchedEffect(authViewModel, authState, preferencesViewModel) {
+                if (preferencesViewModel != null) {
+                    val userId = (authState as? AuthUiState.SignedIn)?.userId
+                    if (userId == null) preferencesViewModel.clearForSignedOut()
+                    else preferencesViewModel.loadForAccount(userId)
+                }
+            }
+
             if (authState !is AuthUiState.SignedIn) {
                 AuthScreen(viewModel = authViewModel)
+            } else if (
+                preferencesViewModel != null &&
+                preferencesState?.value !is ReadingPreferencesUiState.Viewing
+            ) {
+                ReadingPreferencesScreen(
+                    viewModel = preferencesViewModel,
+                    onSignIn = featureViewModels.onSignIn,
+                )
             } else {
                 MainAppContent(featureViewModels)
             }
@@ -172,12 +194,31 @@ private fun MainAppContent(featureViewModels: AppFeatureViewModels?) {
                     }
                 }
 
+                surface == AppSurface.PREFERENCES &&
+                        featureViewModels?.readingPreferences != null -> {
+                    ReadingPreferencesScreen(
+                        viewModel = featureViewModels.readingPreferences,
+                        modifier = contentModifier,
+                        onClose = {
+                            selectedRoute = AppDestination.PROFILE.route
+                            selectedSurface = AppSurface.MAIN.name
+                        },
+                        onSignIn = featureViewModels.onSignIn,
+                    )
+                }
+
                 selectedDestination == AppDestination.PROFILE &&
                         featureViewModels != null -> {
                     ReadingStatsScreen(
                         viewModel = featureViewModels.readingStats,
                         modifier = contentModifier,
                         onSessionExpired = featureViewModels.onSignIn,
+                        onEditPreferences = featureViewModels.readingPreferences?.let { preferencesViewModel ->
+                            {
+                                preferencesViewModel.beginEdit()
+                                selectedSurface = AppSurface.PREFERENCES.name
+                            }
+                        },
                     )
                 }
 
@@ -207,6 +248,7 @@ private enum class AppSurface {
     MAIN,
     SERIES_DISCOVERY,
     SERIES_READING,
+    PREFERENCES,
     COMPONENTS_SHOWCASE,
 }
 

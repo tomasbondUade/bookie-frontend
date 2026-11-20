@@ -25,6 +25,7 @@ fun ReadingStatsScreen(
     viewModel: ReadingStatsViewModel,
     modifier: Modifier = Modifier,
     onSessionExpired: (() -> Unit)? = null,
+    onEditPreferences: (() -> Unit)? = null,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -40,6 +41,9 @@ fun ReadingStatsScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text("Estadísticas de lectura", style = MaterialTheme.typography.headlineSmall)
+        onEditPreferences?.let { onEdit ->
+            Button(onClick = onEdit) { Text("Preferencias de lectura") }
+        }
 
         when (val currentState = state) {
             ReadingStatsUiState.Idle,
