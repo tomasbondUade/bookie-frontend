@@ -125,9 +125,18 @@ fun LibraryNotConnectedScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("Mi biblioteca", style = MaterialTheme.typography.headlineSmall)
-        Text("Iniciá sesión para consultar tus libros.")
+        Text(if (onSignIn != null) {
+            "Iniciá sesión para consultar tus libros."
+        } else {
+            "La conexión de cuenta todavía no está configurada en esta compilación."
+        })
         Text(
-            "Esta sección necesita la sesión de tu cuenta. No muestra datos de otros usuarios.",
+            if (onSignIn != null) {
+                "Esta sección necesita la sesión de tu cuenta. No muestra datos de otros usuarios."
+            } else {
+                "Configurá la URL y clave pública de Supabase para usar tu biblioteca. " +
+                    "No se utilizan cuentas ni libros simulados."
+            },
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         if (onSignIn != null) {

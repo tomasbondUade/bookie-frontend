@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -103,6 +104,11 @@ private fun MainAppContent(featureViewModels: AppFeatureViewModels?) {
             rememberConfiguredCommunityViewModel()
         } else null
     val communityViewModel = featureViewModels?.community ?: fallbackCommunity
+    // The current Android/iOS entry points call App() without injecting feature ViewModels.
+    // Use the existing AuthClientBundle + account-scoped SQLDelight cache if configured.
+    val configuredLibrary = if (featureViewModels == null) {
+        rememberConfiguredLibraryExperience()
+    } else null
     val selectedDestination =
             AppDestination.fromRoute(selectedRoute) ?: AppDestination.HOME
     val surface = AppSurface.entries.firstOrNull {
@@ -187,8 +193,8 @@ private fun MainAppContent(featureViewModels: AppFeatureViewModels?) {
 
                 selectedDestination == AppDestination.LIBRARY -> {
                     val libraryViewModel = featureViewModels?.library
-                    if (libraryViewModel != null) {
-                        LibraryScreen(
+                    when {
+                        libraryViewModel != null -> LibraryScreen(
                             viewModel = libraryViewModel,
                             onExploreBooks = {
                                 selectedRoute = AppDestination.SEARCH.route
@@ -196,8 +202,32 @@ private fun MainAppContent(featureViewModels: AppFeatureViewModels?) {
                             },
                             modifier = contentModifier,
                         )
-                    } else {
-                        LibraryNotConnectedScreen(
+                        configuredLibrary != null -> {
+                            val authState by configuredLibrary.authViewModel.uiState
+                                .collectAsStateWithLifecycle()
+                            val signedIn = authState as? AuthUiState.SignedIn
+                            if (signedIn != null) {
+                                // A fresh ViewModel per user prevents leaking previous
+                                // user's visible items across account switches.
+                                val accountLibrary = remember(configuredLibrary, signedIn.userId) {
+                                    configuredLibrary.libraryViewModel()
+                                }
+                                LibraryScreen(
+                                    viewModel = accountLibrary,
+                                    onExploreBooks = {
+                                        selectedRoute = AppDestination.SEARCH.route
+                                        selectedSurface = AppSurface.MAIN.name
+                                    },
+                                    modifier = contentModifier,
+                                )
+                            } else {
+                                AuthScreen(
+                                    viewModel = configuredLibrary.authViewModel,
+                                    modifier = contentModifier,
+                                )
+                            }
+                        }
+                        else -> LibraryNotConnectedScreen(
                             onSignIn = featureViewModels?.onSignIn,
                             modifier = contentModifier,
                         )
