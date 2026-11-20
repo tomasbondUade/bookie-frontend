@@ -150,6 +150,8 @@ class BookListsViewModel(
     fun searchBooks(query: String) {
         val cleanQuery = query.trim()
         if (cleanQuery.isEmpty()) {
+            searchVersion++
+            searchJob?.cancel()
             mutableState.value = mutableState.value.copy(bookSearch = BookListSearchState.Idle)
             return
         }
