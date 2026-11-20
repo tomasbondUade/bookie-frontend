@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
@@ -52,6 +54,9 @@ fun CommunityScreen(
     val create by viewModel.create.collectAsStateWithLifecycle()
     var query by rememberSaveable { mutableStateOf("") }
     var composePost by rememberSaveable { mutableStateOf(false) }
+    var selectedPostId by rememberSaveable { mutableStateOf<String?>(null) }
+    val selectedPost = (posts as? CommunityPostsState.Ready)?.posts
+        ?.firstOrNull { it.id == selectedPostId }
     val postsViewModel = selected?.id?.let { communityId ->
         remember(communityId, postsViewModelFactory) { postsViewModelFactory?.invoke(communityId) }
     }
@@ -65,6 +70,12 @@ fun CommunityScreen(
     }
 
     LaunchedEffect(viewModel) { viewModel.loadCommunities() }
+    LaunchedEffect(selectedPostId) {
+        val postId = selectedPostId
+        if (postId != null && commentThreads[postId]?.expanded != true) {
+            viewModel.toggleCommentComposer(postId)
+        }
+    }
 
     if (compatibilityViewModel != null) {
         ReadingCompatibilityDialog(compatibilityViewModel, onSignIn)
@@ -108,7 +119,42 @@ fun CommunityScreen(
                 enabled = !create.saving,
             ) { Text("Cancelar") }
         } else if (selected != null) {
-            TextButton(onClick = viewModel::showCommunities) { Text("Volver a comunidades") }
+            if (selectedPost != null) {
+                TextButton(onClick = { selectedPostId = null }) { Text("Volver a comunidad") }
+                Text("POST EN ${selected!!.name.uppercase()}", style = MaterialTheme.typography.titleMedium,
+                    textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                Column(
+                    modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(selectedPost.title, style = MaterialTheme.typography.headlineSmall,
+                        textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                    Text("Por ${selectedPost.author?.username ?: "un lector"} · ${selectedPost.createdAt.substringBefore('T')}")
+                    Text(selectedPost.content)
+                    val targetUserId = selectedPost.author?.id?.takeIf(String::isNotBlank)
+                        ?: selectedPost.authorId.takeIf(String::isNotBlank)
+                    if (compatibilityViewModel != null && targetUserId != null && targetUserId != currentUserId) {
+                        TextButton(onClick = { compatibilityViewModel.compareWith(targetUserId) }) {
+                            Text("Ver compatibilidad lectora")
+                        }
+                    }
+                    HorizontalDivider()
+                    Text("Respuestas", style = MaterialTheme.typography.titleMedium)
+                    CommunityCommentComposer(
+                        state = commentThreads[selectedPost.id] ?: CommunityCommentThreadState(),
+                        onDraftChanged = { viewModel.onCommentDraftChanged(selectedPost.id, it) },
+                        onReply = { viewModel.replyToComment(selectedPost.id, it) },
+                        onCancelReply = { viewModel.cancelReply(selectedPost.id) },
+                        onSend = { viewModel.sendComment(selectedPost.id) },
+                        onRetryComments = { viewModel.retryComments(selectedPost.id) },
+                        onDismissFeedback = { viewModel.dismissCommentFeedback(selectedPost.id) },
+                        onSignIn = onSignIn,
+                    )
+                }
+            } else {
+            TextButton(onClick = { selectedPostId = null; viewModel.showCommunities() }) {
+                Text("Volver a comunidades")
+            }
             Text(selected!!.name, style = MaterialTheme.typography.headlineSmall)
             Text(selected!!.description)
             if (selected!!.tags.isNotEmpty()) {
@@ -133,9 +179,7 @@ fun CommunityScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     items(current.posts, key = { it.id }) { post ->
-                        val targetUserId = post.author?.id?.takeIf(String::isNotBlank)
-                            ?: post.authorId.takeIf(String::isNotBlank)
-                        Card(modifier = Modifier.fillMaxWidth()) {
+                        Card(onClick = { selectedPostId = post.id }, modifier = Modifier.fillMaxWidth()) {
                             Column(
                                 modifier = Modifier.padding(12.dp),
                                 verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -144,37 +188,12 @@ fun CommunityScreen(
                                 post.author?.username?.let { Text("Por $it", style = MaterialTheme.typography.labelMedium) }
                                 Text(post.content)
                                 Text(post.createdAt.substringBefore('T'), style = MaterialTheme.typography.labelSmall)
-                                if (
-                                    compatibilityViewModel != null && targetUserId != null &&
-                                    targetUserId != currentUserId
-                                ) {
-                                    TextButton(
-                                        onClick = { compatibilityViewModel.compareWith(targetUserId) },
-                                    ) { Text("Ver compatibilidad lectora") }
-                                }
-                                val commentState = commentThreads[post.id] ?: CommunityCommentThreadState()
-                                TextButton(
-                                    onClick = { viewModel.toggleCommentComposer(post.id) },
-                                    enabled = !commentState.sending,
-                                ) {
-                                    Text(if (commentState.expanded) "Cerrar comentarios" else "Comentar")
-                                }
-                                if (commentState.expanded) {
-                                    CommunityCommentComposer(
-                                        state = commentState,
-                                        onDraftChanged = { viewModel.onCommentDraftChanged(post.id, it) },
-                                        onReply = { viewModel.replyToComment(post.id, it) },
-                                        onCancelReply = { viewModel.cancelReply(post.id) },
-                                        onSend = { viewModel.sendComment(post.id) },
-                                        onRetryComments = { viewModel.retryComments(post.id) },
-                                        onDismissFeedback = { viewModel.dismissCommentFeedback(post.id) },
-                                        onSignIn = onSignIn,
-                                    )
-                                }
+                                Text("Abrir post", color = MaterialTheme.colorScheme.primary)
                             }
                         }
                     }
                 }
+            }
             }
         } else {
             onBack?.let { TextButton(onClick = it) { Text("Volver a Inicio") } }
