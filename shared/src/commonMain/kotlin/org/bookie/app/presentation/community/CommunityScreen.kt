@@ -7,8 +7,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -26,6 +28,9 @@ import org.bookie.app.presentation.components.BookieLoadingState
 @Composable
 fun CommunityScreen(
     viewModel: CommunityViewModel,
+    compatibilityViewModel: ReadingCompatibilityViewModel? = null,
+    currentUserId: String? = null,
+    onSignIn: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val catalog by viewModel.catalog.collectAsStateWithLifecycle()
@@ -35,6 +40,10 @@ fun CommunityScreen(
     val create by viewModel.create.collectAsStateWithLifecycle()
 
     LaunchedEffect(viewModel) { viewModel.loadCommunities() }
+
+    if (compatibilityViewModel != null) {
+        ReadingCompatibilityDialog(compatibilityViewModel, onSignIn)
+    }
 
     Column(
         modifier = modifier.fillMaxSize().padding(16.dp),
@@ -93,6 +102,8 @@ fun CommunityScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     items(current.posts, key = { it.id }) { post ->
+                        val targetUserId = post.author?.id?.takeIf(String::isNotBlank)
+                            ?: post.authorId.takeIf(String::isNotBlank)
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(
                                 modifier = Modifier.padding(12.dp),
@@ -102,6 +113,14 @@ fun CommunityScreen(
                                 post.author?.username?.let { Text("Por $it", style = MaterialTheme.typography.labelMedium) }
                                 Text(post.content)
                                 Text(post.createdAt.substringBefore('T'), style = MaterialTheme.typography.labelSmall)
+                                if (
+                                    compatibilityViewModel != null && targetUserId != null &&
+                                    targetUserId != currentUserId
+                                ) {
+                                    TextButton(
+                                        onClick = { compatibilityViewModel.compareWith(targetUserId) },
+                                    ) { Text("Ver compatibilidad lectora") }
+                                }
                             }
                         }
                     }
@@ -172,6 +191,68 @@ fun CommunityScreen(
             }
         }
     }
+}
+
+@Composable
+private fun ReadingCompatibilityDialog(
+    viewModel: ReadingCompatibilityViewModel,
+    onSignIn: (() -> Unit)?,
+) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    if (state == ReadingCompatibilityUiState.Idle) return
+
+    AlertDialog(
+        onDismissRequest = viewModel::dismiss,
+        title = { Text("Compatibilidad lectora") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                when (val current = state) {
+                    ReadingCompatibilityUiState.Idle -> Unit
+                    is ReadingCompatibilityUiState.Loading -> CircularProgressIndicator()
+                    is ReadingCompatibilityUiState.Error -> {
+                        Text(current.message, color = MaterialTheme.colorScheme.error)
+                    }
+                    is ReadingCompatibilityUiState.Ready -> {
+                        val compatibility = current.compatibility
+                        Text(compatibility.user.username ?: "Lector/a")
+                        Text("${compatibility.compatibilityPercentage.coerceIn(0, 100)}% de compatibilidad")
+                        Text(
+                            when (compatibility.dataQuality.lowercase()) {
+                                "limited" -> "Datos limitados"
+                                "good" -> "Datos suficientes"
+                                else -> "Calidad de datos no disponible"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                        compatibility.reasons.forEach { reason -> Text("• $reason") }
+                        if (compatibility.sharedGenres.isNotEmpty()) {
+                            Text("Géneros en común: ${compatibility.sharedGenres.take(3).joinToString()}")
+                        }
+                        if (compatibility.sharedAuthors.isNotEmpty()) {
+                            Text("Autores en común: ${compatibility.sharedAuthors.take(3).joinToString()}")
+                        }
+                        compatibility.sharedBooks.take(3).forEach { book ->
+                            Text("Libro en común: ${book.title}", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = viewModel::dismiss) { Text("Cerrar") }
+        },
+        dismissButton = {
+            val error = state as? ReadingCompatibilityUiState.Error
+            if (error?.sessionExpired == true && onSignIn != null) {
+                TextButton(onClick = {
+                    viewModel.dismiss()
+                    onSignIn()
+                }) { Text("Iniciar sesión") }
+            } else if (error != null) {
+                TextButton(onClick = viewModel::retry) { Text("Reintentar") }
+            }
+        },
+    )
 }
 
 @Composable

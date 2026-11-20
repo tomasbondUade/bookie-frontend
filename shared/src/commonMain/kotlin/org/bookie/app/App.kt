@@ -79,14 +79,20 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
                     onSignIn = featureViewModels.onSignIn,
                 )
             } else {
-                MainAppContent(featureViewModels)
+                MainAppContent(
+                    featureViewModels = featureViewModels,
+                    currentUserId = (authState as? AuthUiState.SignedIn)?.userId,
+                )
             }
         }
     }
 }
 
 @Composable
-private fun MainAppContent(featureViewModels: AppFeatureViewModels?) {
+private fun MainAppContent(
+    featureViewModels: AppFeatureViewModels?,
+    currentUserId: String? = null,
+) {
     var selectedRoute by rememberSaveable {
             mutableStateOf(AppDestination.HOME.route)
         }
@@ -198,7 +204,13 @@ private fun MainAppContent(featureViewModels: AppFeatureViewModels?) {
 
                 selectedDestination == AppDestination.COMMUNITY -> {
                     if (communityViewModel != null) {
-                        CommunityScreen(viewModel = communityViewModel, modifier = contentModifier)
+                        CommunityScreen(
+                            viewModel = communityViewModel,
+                            compatibilityViewModel = featureViewModels?.readingCompatibility,
+                            currentUserId = currentUserId,
+                            onSignIn = featureViewModels?.onSignIn,
+                            modifier = contentModifier,
+                        )
                     } else {
                         Column(modifier = contentModifier.padding(24.dp)) {
                             Text("Comunidades", style = MaterialTheme.typography.headlineSmall)
