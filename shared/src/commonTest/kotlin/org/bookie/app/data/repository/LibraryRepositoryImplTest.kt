@@ -19,6 +19,7 @@ import org.bookie.app.domain.model.ReadingSessionInput
 import org.bookie.app.domain.result.Resource
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 
 class LibraryRepositoryImplTest {
     @Test
@@ -162,6 +163,49 @@ class LibraryRepositoryImplTest {
             ),
             result,
         )
+        client.close()
+    }
+
+    @Test
+    fun `saves and maps personal library details`() = runTest {
+        var requestBody = ""
+        val client = client { request ->
+            requestBody = (request.body as io.ktor.http.content.TextContent).text
+            respond(
+                """{"id":"state-1","bookId":"book-1","status":"READ","rating":5,"comment":"Una gran lectura","isFavorite":true,"startedAt":"2026-11-01T09:30:00Z","finishedAt":"2026-11-19T18:45:00Z","isAbandoned":false,"privateNotes":"Releer el final","updatedAt":"2026-11-19T18:45:00Z","book":{"id":"book-1","googleBookId":"google-1","title":"Dune","authors":["Frank Herbert"],"genres":["Science Fiction"]}}""",
+                HttpStatusCode.Created,
+                jsonHeaders(),
+            )
+        }
+        val repository = LibraryRepositoryImpl(KtorLibraryRemoteDataSource(client))
+
+        val result = repository.saveState(
+            LibraryStateInput(
+                bookId = "book-1",
+                status = LibraryStatus.READ,
+                rating = 5,
+                comment = "Una gran lectura",
+                isFavorite = true,
+                startedAt = "2026-11-01T09:30:00Z",
+                finishedAt = "2026-11-19T18:45:00Z",
+                isAbandoned = false,
+                privateNotes = "Releer el final",
+            ),
+        )
+
+        assertEquals(
+            """{"bookId":"book-1","status":"READ","rating":5,"comment":"Una gran lectura","isFavorite":true,"startedAt":"2026-11-01T09:30:00Z","finishedAt":"2026-11-19T18:45:00Z","isAbandoned":false,"privateNotes":"Releer el final"}""",
+            requestBody,
+        )
+        val saved = assertIs<Resource.Success<LibraryBookState>>(result).data
+        assertEquals(LibraryStatus.READ, saved.status)
+        assertEquals(5, saved.rating)
+        assertEquals("Una gran lectura", saved.comment)
+        assertEquals(true, saved.isFavorite)
+        assertEquals("2026-11-01T09:30:00Z", saved.startedAt)
+        assertEquals("2026-11-19T18:45:00Z", saved.finishedAt)
+        assertEquals(false, saved.isAbandoned)
+        assertEquals("Releer el final", saved.privateNotes)
         client.close()
     }
 

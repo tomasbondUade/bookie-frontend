@@ -34,6 +34,7 @@ import org.bookie.app.presentation.auth.AuthScreen
 import org.bookie.app.presentation.auth.AuthUiState
 import org.bookie.app.presentation.community.CommunityScreen
 import org.bookie.app.presentation.components.BookieComponentsScreen
+import org.bookie.app.presentation.library.LibraryExperienceScreen
 import org.bookie.app.presentation.navigation.AppDestination
 import org.bookie.app.presentation.navigation.AppFeatureViewModels
 import org.bookie.app.presentation.profile.ReadingStatsScreen
@@ -192,6 +193,14 @@ private fun MainAppContent(featureViewModels: AppFeatureViewModels?) {
                             Text("Falta configurar la URL del backend Bookie (bookie_api_base_url).")
                         }
                     }
+                }
+
+                selectedDestination == AppDestination.LIBRARY &&
+                        featureViewModels?.libraryExperience != null -> {
+                    LibraryExperienceScreen(
+                        viewModel = featureViewModels.libraryExperience,
+                        modifier = contentModifier,
+                    )
                 }
 
                 surface == AppSurface.PREFERENCES &&
