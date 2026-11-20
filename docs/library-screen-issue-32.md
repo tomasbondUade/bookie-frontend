@@ -34,3 +34,38 @@ The underlying ViewModel tests cover cached/fresh pages, filters, pagination,
 failed writes, successful server-acknowledged writes and progress validation.
 Manual authenticated verification requires the existing login #27 to be
 connected through the app composition root.
+
+## Android debug, actual session setup
+
+The app now automatically connects the library tab to the existing Supabase
+AuthScreen / AuthViewModel / AuthClientBundle and account-scoped SQLDelight cache
+when the following strings are configured:
+
+- `bookie_api_base_url` — existing debug resource already has `http://127.0.0.1:3000`.
+- `bookie_supabase_url` — the public URL of your actual Supabase project.
+- `bookie_supabase_publishable_key` — the **public** Supabase publishable/anon key;
+  never use a secret/service-role key.
+
+Fill the last two resource values locally in
+`androidApp/src/main/res/values/bookie_api_config.xml` (no secrets), or
+provide those values from the team's Android resource build configuration.
+Do **not commit personalized environment configuration**. Once both are
+available, open Biblioteca: the existing auth form restores or creates a
+Supabase session; after success the user-specific Online First repository
+starts loading. Reconnect `adb reverse tcp:3000 tcp:3000` after reconnecting USB.
+To test offline caching, first open an authenticated library with internet
+and successful API data, then disable connection to the backend and refresh;
+the UI marks saved snapshots as stale.
+
+The library tab uses this integration on the current Android app even though
+`MainActivity` calls `App()`. Existing public search, reviews and communities
+remain available. In a fully injected app composition root, provide
+`AppFeatureViewModels.library` to use the same UI. The new library-only auth
+entry is a transitional wiring of the **existing** repository, not a
+separate login implementation.
+
+iOS will use the same structure when the host provides
+`BOOKIE_SUPABASE_URL` and `BOOKIE_SUPABASE_PUBLISHABLE_KEY` in Info.plist.
+
+Logout / clearing old account caches, and making the entire app share one
+login screen, belong to #63. Avoid switching accounts until #63 is integrated.

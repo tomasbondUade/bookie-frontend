@@ -2,4 +2,8 @@
 <resources>
     <!-- Public backend URL, e.g. https://your-backend.example.com. No secrets here. -->
     <string name="bookie_api_base_url" translatable="false"></string>
+    <!-- Public values only. Supply the Supabase project URL and publishable/anon key
+         from your environment. Never use service_role or sb_secret_ keys here. -->
+    <string name="bookie_supabase_url" translatable="false"></string>
+    <string name="bookie_supabase_publishable_key" translatable="false"></string>
 </resources>
