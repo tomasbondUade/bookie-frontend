@@ -217,6 +217,36 @@ class LibraryExperienceViewModelTest {
     }
 
     @Test
+    fun `personal book details are sent together in one confirmed save`() = runTest {
+        val repository = FakeRepository()
+        val viewModel = vm(
+            FakeFeed().apply {
+                respond = { flowOf(LibraryLoad.Fresh(libraryPage(1, 1, sampleState()))) }
+            },
+            repository,
+        )
+        viewModel.refresh()
+        runCurrent()
+
+        val input = LibraryStateInput(
+            bookId = "book-1",
+            status = LibraryStatus.READ,
+            rating = 5,
+            comment = "Una gran lectura",
+            isFavorite = true,
+            startedAt = "2026-11-01T09:30:00Z",
+            finishedAt = "2026-11-19T18:45:00Z",
+            isAbandoned = false,
+            privateNotes = "Releer el final",
+        )
+        viewModel.save(input)
+        runCurrent()
+
+        assertEquals(listOf(input), repository.saveCalls)
+        assertIs<LibraryActionState.Succeeded>(viewModel.uiState.value.action)
+    }
+
+    @Test
     fun `failed save keeps previous snapshot and invalid progress never reaches backend`() = runTest {
         val repository = FakeRepository().apply {
             saveResponse = { Resource.Error("No se pudo conectar") }
