@@ -12,6 +12,7 @@ import org.bookie.app.presentation.series.SeriesExplorerViewModel
 import org.bookie.app.presentation.series.SeriesReadingViewModel
 import org.bookie.app.presentation.tinder.BookTinderViewModel
 import org.bookie.app.presentation.community.ReadingCompatibilityViewModel
+import org.bookie.app.presentation.challenges.ReadingChallengesViewModel
 
 /** ViewModels are supplied by the platform composition root using its authenticated API client. */
 data class AppFeatureViewModels(
@@ -29,4 +30,5 @@ data class AppFeatureViewModels(
     val bookLists: BookListsViewModel? = null,
     val bookTinder: BookTinderViewModel? = null,
     val readingCompatibility: ReadingCompatibilityViewModel? = null,
+    val readingChallenges: ReadingChallengesViewModel? = null,
 )
