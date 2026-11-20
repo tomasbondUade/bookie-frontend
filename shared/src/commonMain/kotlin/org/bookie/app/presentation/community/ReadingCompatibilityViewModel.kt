@@ -3,6 +3,7 @@ package org.bookie.app.presentation.community
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -18,6 +19,7 @@ class ReadingCompatibilityViewModel(
     val uiState = mutableUiState.asStateFlow()
 
     private var requestVersion = 0L
+    private var requestJob: Job? = null
 
     fun compareWith(targetUserId: String) {
         val normalizedId = targetUserId.trim()
@@ -35,14 +37,16 @@ class ReadingCompatibilityViewModel(
 
     fun dismiss() {
         requestVersion++
+        requestJob?.cancel()
         mutableUiState.value = ReadingCompatibilityUiState.Idle
     }
 
     private fun load(targetUserId: String) {
         val expectedVersion = ++requestVersion
+        requestJob?.cancel()
         mutableUiState.value = ReadingCompatibilityUiState.Loading(targetUserId)
 
-        viewModelScope.launch {
+        requestJob = viewModelScope.launch {
             val result = try {
                 getReadingCompatibility(targetUserId)
             } catch (exception: CancellationException) {

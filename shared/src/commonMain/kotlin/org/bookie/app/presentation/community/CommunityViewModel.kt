@@ -300,7 +300,7 @@ class CommunityViewModel(
     fun replyToComment(postId: String, comment: CommunityComment) {
         if (comment.postId != postId || !isPostVisible(postId)) return
         val thread = mutableCommentThreads.value[postId] ?: CommunityCommentThreadState()
-        if (thread.comments.none { it.id == comment.id }) return
+        if (thread.sending || thread.comments.none { it.id == comment.id }) return
         updateCommentThread(postId) {
             it.copy(
                 expanded = true,
@@ -313,7 +313,7 @@ class CommunityViewModel(
     }
 
     fun cancelReply(postId: String) {
-        updateCommentThread(postId) { it.copy(replyTo = null, error = null, signInRequired = false) }
+        updateCommentThread(postId) { if (it.sending) it else it.copy(replyTo = null, error = null, signInRequired = false) }
     }
 
     fun dismissCommentFeedback(postId: String) {
