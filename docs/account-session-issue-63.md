@@ -9,8 +9,10 @@ mostrar los datos reales de la cuenta y gestionar su ciclo de vida.
 - Se restaura la sesión una vez por `AuthViewModel` y se protegen las pantallas
   para que un usuario desconectado no vea contenidos de otra cuenta.
 - Perfil presenta únicamente el usuario y correo guardados con la sesión.
-- Preferencias/Estadísticas usan los ViewModels provistos por la raíz de composición
-  del equipo. No se crea una API de perfil ni un nuevo repositorio de estadísticas.
+- Preferencias/Estadísticas reutilizan los repositorios y ViewModels ya existentes.
+  El root Android/iOS los conecta con el mismo cliente JWT de Supabase y los
+  enlaces aparecen en Mi cuenta. Si se inyectan ViewModels desde el host,
+  se reutilizan esos en lugar de instanciar duplicados. No se crea una API de perfil.
 - La operación de cierre primero invalida SQLDelight para el ID anterior,
   después llama a `SupabaseAuthRepository.signOut()`. Si limpiar caché falla,
   conserva la sesión y permite reintentar.
@@ -32,3 +34,21 @@ mostrar los datos reales de la cuenta y gestionar su ciclo de vida.
 
 Nota: Si la configuración de Supabase no está presente en un target, la app
 mantiene las pantallas públicas ya existentes y no inventa credenciales.
+
+## Validación sugerida
+
+```bash
+./gradlew :shared:testAndroidHostTest :androidApp:assembleDebug
+./gradlew :androidApp:installDebug
+```
+
+Con Android conectado por USB, si el backend o Supabase local no responden:
+
+```bash
+~/Library/Android/sdk/platform-tools/adb reverse tcp:3000 tcp:3000
+~/Library/Android/sdk/platform-tools/adb reverse tcp:54321 tcp:54321
+```
+
+Los tests automatizados cubren el orden limpieza→logout y la recuperación
+ante fallas de caché; las verificaciones Android aún requieren ejecutarse
+localmente antes de abrir el PR.
