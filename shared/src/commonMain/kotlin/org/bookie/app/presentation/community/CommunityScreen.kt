@@ -12,6 +12,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -139,6 +140,7 @@ fun CommunityScreen(
                                         onReply = { viewModel.replyToComment(post.id, it) },
                                         onCancelReply = { viewModel.cancelReply(post.id) },
                                         onSend = { viewModel.sendComment(post.id) },
+                                        onRetryComments = { viewModel.retryComments(post.id) },
                                         onDismissFeedback = { viewModel.dismissCommentFeedback(post.id) },
                                         onSignIn = onSignIn,
                                     )
@@ -222,14 +224,23 @@ private fun CommunityCommentComposer(
     onReply: (CommunityComment) -> Unit,
     onCancelReply: () -> Unit,
     onSend: () -> Unit,
+    onRetryComments: () -> Unit,
     onDismissFeedback: () -> Unit,
     onSignIn: (() -> Unit)?,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            "El backend todavía no permite cargar comentarios anteriores.",
-            style = MaterialTheme.typography.bodySmall,
-        )
+        if (state.loading) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        }
+        state.loadError?.let { message ->
+            Text(message, color = MaterialTheme.colorScheme.error)
+            TextButton(onClick = onRetryComments, enabled = !state.loading) {
+                Text("Reintentar carga")
+            }
+        }
+        if (state.loaded && !state.loading && state.comments.isEmpty()) {
+            Text("Todavía no hay comentarios.", style = MaterialTheme.typography.bodySmall)
+        }
         state.comments.forEach { comment ->
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 if (comment.parentId != null) {

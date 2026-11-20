@@ -13,6 +13,7 @@ import org.bookie.app.data.remote.dto.*
 
 interface CommunityPostsRemoteDataSource {
     suspend fun getPosts(communityId: String, limit: Int): List<CommunityPostDto>
+    suspend fun getComments(postId: String, limit: Int): List<CommunityCommentDto>
     suspend fun createPost(communityId: String, input: CreateCommunityPostDto): CommunityPostDto
     suspend fun createComment(postId: String, input: CreateCommunityCommentDto): CommunityCommentDto
 }
@@ -23,6 +24,15 @@ class KtorCommunityPostsRemoteDataSource(private val client: HttpClient) : Commu
         require(limit in 1..50) { "El límite debe estar entre 1 y 50." }
         return client.get {
             url { appendPathSegments("communities", communityId, "posts") }
+            parameter("limit", limit)
+        }.body()
+    }
+
+    override suspend fun getComments(postId: String, limit: Int): List<CommunityCommentDto> {
+        require(postId.isNotBlank()) { "La publicación es obligatoria." }
+        require(limit in 1..50) { "El límite debe estar entre 1 y 50." }
+        return client.get {
+            url { appendPathSegments("posts", postId, "comments") }
             parameter("limit", limit)
         }.body()
     }

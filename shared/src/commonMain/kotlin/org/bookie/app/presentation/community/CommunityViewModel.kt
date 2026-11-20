@@ -18,6 +18,7 @@ import org.bookie.app.domain.result.ResourceErrorKind
 import org.bookie.app.domain.usecase.CreateCommunity
 import org.bookie.app.domain.usecase.CreateCommunityComment
 import org.bookie.app.domain.usecase.GetCommunities
+import org.bookie.app.domain.usecase.GetCommunityComments
 import org.bookie.app.domain.usecase.GetCommunityPosts
 import org.bookie.app.domain.usecase.GetRecommendedCommunities
 
@@ -26,6 +27,7 @@ class CommunityViewModel(
     private val createCommunity: CreateCommunity,
     private val getRecommended: GetRecommendedCommunities,
     private val getPosts: GetCommunityPosts,
+    private val getComments: GetCommunityComments,
     private val createComment: CreateCommunityComment,
     private val authRepository: AuthRepository? = null,
 ) : ViewModel() {
@@ -52,6 +54,7 @@ class CommunityViewModel(
     private var catalogVersion = 0L
     private var recommendationsVersion = 0L
     private var postsVersion = 0L
+    private val commentLoadVersions = mutableMapOf<String, Long>()
 
     fun openCreate() {
         mutableCreate.value = CommunityCreateUiState(visible = true)
@@ -230,7 +233,62 @@ class CommunityViewModel(
 
     fun toggleCommentComposer(postId: String) {
         if (!isPostVisible(postId)) return
-        updateCommentThread(postId) { it.copy(expanded = !it.expanded, error = null, notice = null) }
+        val expanded = !(mutableCommentThreads.value[postId]?.expanded ?: false)
+        updateCommentThread(postId) {
+            it.copy(expanded = expanded, error = null, notice = null)
+        }
+        if (expanded) loadComments(postId)
+    }
+
+    fun retryComments(postId: String) {
+        val thread = mutableCommentThreads.value[postId] ?: return
+        if (!thread.expanded || thread.loading) return
+        loadComments(postId)
+    }
+
+    private fun loadComments(postId: String) {
+        val current = mutableCommentThreads.value[postId] ?: CommunityCommentThreadState()
+        if (!isPostVisible(postId) || current.loading) return
+
+        val version = (commentLoadVersions[postId] ?: 0L) + 1L
+        commentLoadVersions[postId] = version
+        updateCommentThread(postId) { it.copy(loading = true, loadError = null) }
+
+        viewModelScope.launch {
+            val result = try {
+                getComments(postId)
+            } catch (cancel: CancellationException) {
+                throw cancel
+            } catch (error: Exception) {
+                Resource.Error(error.message ?: "No se pudieron cargar los comentarios.")
+            }
+            if (commentLoadVersions[postId] != version || !isPostVisible(postId)) return@launch
+
+            val latest = mutableCommentThreads.value[postId] ?: CommunityCommentThreadState()
+            when (result) {
+                is Resource.Success -> {
+                    if (result.data.any { it.postId != postId }) {
+                        mutableCommentThreads.value = mutableCommentThreads.value + (postId to latest.copy(
+                            loading = false,
+                            loadError = "El servidor devolvió comentarios de otra publicación.",
+                        ))
+                    } else {
+                        mutableCommentThreads.value = mutableCommentThreads.value + (postId to latest.copy(
+                            comments = mergeComments(result.data, latest.comments),
+                            loading = false,
+                            loaded = true,
+                            loadError = null,
+                        ))
+                    }
+                }
+                is Resource.Error -> {
+                    mutableCommentThreads.value = mutableCommentThreads.value + (postId to latest.copy(
+                        loading = false,
+                        loadError = result.message,
+                    ))
+                }
+            }
+        }
     }
 
     fun onCommentDraftChanged(postId: String, value: String) {
@@ -315,7 +373,7 @@ class CommunityViewModel(
                         return@launch
                     }
                     mutableCommentThreads.value = mutableCommentThreads.value + (postId to latest.copy(
-                        comments = (latest.comments + comment).distinctBy(CommunityComment::id),
+                        comments = mergeComments(latest.comments, listOf(comment)),
                         draft = "",
                         replyTo = null,
                         sending = false,
@@ -345,6 +403,13 @@ class CommunityViewModel(
 
     private fun isPostVisible(postId: String): Boolean =
         (mutablePosts.value as? CommunityPostsState.Ready)?.posts?.any { it.id == postId } == true
+
+    private fun mergeComments(
+        first: List<CommunityComment>,
+        second: List<CommunityComment>,
+    ): List<CommunityComment> = (first + second)
+        .distinctBy(CommunityComment::id)
+        .sortedWith(compareBy<CommunityComment> { it.createdAt }.thenBy { it.id })
 
     private fun updateCommentThread(
         postId: String,
@@ -421,6 +486,9 @@ data class CommunityCreateUiState(
 data class CommunityCommentThreadState(
     val expanded: Boolean = false,
     val comments: List<CommunityComment> = emptyList(),
+    val loading: Boolean = false,
+    val loaded: Boolean = false,
+    val loadError: String? = null,
     val draft: String = "",
     val replyTo: CommunityComment? = null,
     val sending: Boolean = false,

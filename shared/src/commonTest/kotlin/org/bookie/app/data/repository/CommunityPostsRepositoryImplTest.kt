@@ -50,6 +50,30 @@ class CommunityPostsRepositoryImplTest {
         client.close()
     }
 
+    @Test fun `reads persisted comments from the public post endpoint`() = runTest {
+        var path = ""
+        var limit = ""
+        val client = createBookieHttpClient(MockEngine { request ->
+            path = request.url.encodedPath
+            limit = request.url.parameters["limit"].orEmpty()
+            respond(
+                """[{"id":"comment-1","content":"Hola","postId":"post-1","authorId":"user-1","parentId":null,"createdAt":"2026-11-20T10:00:00Z"}]""",
+                headers = headers(),
+            )
+        }, BookieHttpClientConfig("https://api.example.test/v1"))
+
+        val result = CommunityPostsRepositoryImpl(
+            KtorCommunityPostsRemoteDataSource(client), AccessTokenProvider { null },
+        ).getComments("post-1", 50)
+
+        val comments = assertIs<Resource.Success<List<org.bookie.app.domain.model.CommunityComment>>>(result).data
+        assertEquals("/v1/posts/post-1/comments", path)
+        assertEquals("50", limit)
+        assertEquals("comment-1", comments.single().id)
+        assertEquals(null, comments.single().parentId)
+        client.close()
+    }
+
     @Test fun `missing session rejects publication before HTTP`() = runTest {
         var calls = 0
         val client = createBookieHttpClient(MockEngine { calls++; respond("{}") },
