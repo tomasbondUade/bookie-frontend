@@ -17,7 +17,15 @@ sealed interface AuthUiState {
 
     data class Submitting(val mode: AuthMode) : AuthUiState
 
-    data class SignedIn(val email: String?, val userId: String? = null) : AuthUiState
+    data class SignedIn(
+        val email: String?,
+        val userId: String? = null,
+        val username: String? = null,
+        val error: String? = null,
+        val syncWarning: String? = null,
+    ) : AuthUiState
+
+    data object SigningOut : AuthUiState
 
     data class EmailVerificationRequired(val email: String) : AuthUiState
 }

@@ -9,6 +9,7 @@ sealed interface AuthState {
         val email: String?,
         /** A recoverable backend sync problem; Supabase session remains valid. */
         val syncError: String? = null,
+        val username: String? = null,
     ) : AuthState
     data class EmailVerificationRequired(val email: String) : AuthState
     data object Expired : AuthState

@@ -66,6 +66,10 @@ fun AuthScreen(
                 Text("Sesión iniciada", style = MaterialTheme.typography.headlineSmall)
                 current.email?.let { Text(it, modifier = Modifier.padding(top = 8.dp)) }
             }
+            AuthUiState.SigningOut -> {
+                CircularProgressIndicator()
+                Text("Cerrando sesión…", modifier = Modifier.padding(top = 12.dp))
+            }
             is AuthUiState.EmailVerificationRequired -> {
                 Text("Revisá tu correo", style = MaterialTheme.typography.headlineSmall)
                 Text("Enviamos un enlace de confirmación a ${current.email}.", modifier = Modifier.padding(top = 8.dp))
