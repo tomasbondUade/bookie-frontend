@@ -3,6 +3,7 @@ package org.bookie.app.presentation.navigation
 import org.bookie.app.presentation.auth.AuthViewModel
 import org.bookie.app.presentation.community.CommunityViewModel
 import org.bookie.app.presentation.library.LibraryExperienceViewModel
+import org.bookie.app.presentation.lists.BookListsViewModel
 import org.bookie.app.presentation.profile.ReadingStatsViewModel
 import org.bookie.app.presentation.preferences.ReadingPreferencesViewModel
 import org.bookie.app.presentation.search.BookReviewsViewModel
@@ -23,4 +24,5 @@ data class AppFeatureViewModels(
     val auth: AuthViewModel? = null,
     val readingPreferences: ReadingPreferencesViewModel? = null,
     val libraryExperience: LibraryExperienceViewModel? = null,
+    val bookLists: BookListsViewModel? = null,
 )

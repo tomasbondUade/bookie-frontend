@@ -35,6 +35,8 @@ import org.bookie.app.presentation.auth.AuthUiState
 import org.bookie.app.presentation.community.CommunityScreen
 import org.bookie.app.presentation.components.BookieComponentsScreen
 import org.bookie.app.presentation.library.LibraryExperienceScreen
+import org.bookie.app.presentation.lists.BookListsScreen
+import org.bookie.app.presentation.lists.LibraryWorkspaceScreen
 import org.bookie.app.presentation.navigation.AppDestination
 import org.bookie.app.presentation.navigation.AppFeatureViewModels
 import org.bookie.app.presentation.profile.ReadingStatsScreen
@@ -195,12 +197,27 @@ private fun MainAppContent(featureViewModels: AppFeatureViewModels?) {
                     }
                 }
 
-                selectedDestination == AppDestination.LIBRARY &&
-                        featureViewModels?.libraryExperience != null -> {
-                    LibraryExperienceScreen(
-                        viewModel = featureViewModels.libraryExperience,
+                selectedDestination == AppDestination.LIBRARY && featureViewModels?.bookLists != null &&
+                        featureViewModels.libraryExperience != null -> {
+                    LibraryWorkspaceScreen(
+                        libraryViewModel = featureViewModels.libraryExperience,
+                        listsViewModel = featureViewModels.bookLists,
+                        onSignIn = featureViewModels.onSignIn,
                         modifier = contentModifier,
                     )
+                }
+
+                selectedDestination == AppDestination.LIBRARY && featureViewModels?.bookLists != null -> {
+                    BookListsScreen(
+                        viewModel = featureViewModels.bookLists,
+                        onSignIn = featureViewModels.onSignIn,
+                        modifier = contentModifier,
+                    )
+                }
+
+                selectedDestination == AppDestination.LIBRARY &&
+                        featureViewModels?.libraryExperience != null -> {
+                    LibraryExperienceScreen(featureViewModels.libraryExperience, contentModifier)
                 }
 
                 surface == AppSurface.PREFERENCES &&
