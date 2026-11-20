@@ -88,17 +88,26 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
                 )
             } else {
                 val account = authState as AuthUiState.SignedIn
-                key(account.userId) {
+                val accountId = account.userId
+                if (accountId.isNullOrBlank()) {
+                    // A protected screen must never render without an account identity.
+                    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
+                        Text("No se pudo identificar la cuenta. Cerrá sesión e ingresá nuevamente.")
+                        Button(onClick = authViewModel::signOut) {
+                            Text("Cerrar sesión")
+                        }
+                    }
+                } else key(accountId) {
                     // Never reuse a session ViewModel with state loaded for another account.
                     // These instances exist only while the corresponding account is signed in.
                     val sessionFeatures = configuredAccount?.let { root ->
-                        remember(root, account.userId) {
-                            root.createFeaturesForAccount(account.userId)
+                        remember(root, accountId) {
+                            root.createFeaturesForAccount(accountId)
                         }
                     }
                     MainAppContent(
                         featureViewModels = featureViewModels,
-                        currentUserId = account.userId,
+                        currentUserId = accountId,
                         accountViewModel = authViewModel,
                         configuredMoodSearch = sessionFeatures?.moodSearch,
                         configuredLibraryViewModel = sessionFeatures?.library,
