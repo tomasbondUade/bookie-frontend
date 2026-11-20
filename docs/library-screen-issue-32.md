@@ -69,3 +69,32 @@ iOS will use the same structure when the host provides
 
 Logout / clearing old account caches, and making the entire app share one
 login screen, belong to #63. Avoid switching accounts until #63 is integrated.
+
+## Safe local Supabase setup (#32)
+
+From the **frontend root**, run:
+
+```bash
+bash scripts/configure-local-supabase-android.sh /absolute/path/to/bookie-backend
+```
+
+The script reads the **local API URL and ANON_KEY** from `npx supabase status -o json`.
+It creates `androidApp/src/debug/res/values/bookie_supabase_local.xml`,
+which is **ignored by Git**. Never paste the complete status output publicly
+(it may contain service role and other secrets). The shared
+`SupabaseAuthConfig` allows `http://127.0.0.1` or `http://localhost`
+**only** when explicitly enabled by the Android debuggable build. Remote
+HTTP is prohibited, and release builds still require HTTPS.
+
+Connect an Android phone over USB and run both reverse mappings:
+
+```bash
+~/Library/Android/sdk/platform-tools/adb reverse tcp:3000 tcp:3000
+~/Library/Android/sdk/platform-tools/adb reverse tcp:54321 tcp:54321
+```
+
+The backend `.env` must point to **the same** local Supabase
+(`SUPABASE_URL=http://127.0.0.1:54321`). Start both Supabase and NestJS
+to test real login + user-specific library. Install the debug APK again
+after creating the local Android resource. The resource is public-client
+config (not a service_role key) but should still remain local.
