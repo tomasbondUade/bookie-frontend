@@ -23,7 +23,13 @@ class ReadingChallengesViewModel(
     val uiState = mutableUiState.asStateFlow()
     private var requestVersion = 0L
 
-    fun load() = fetch()
+    fun load() {
+        val current = mutableUiState.value
+        if (current is ReadingChallengesUiState.Loading ||
+            current is ReadingChallengesUiState.Ready && (current.refreshing || current.joiningChallengeId != null)
+        ) return
+        fetch()
+    }
 
     fun join(challengeId: String) {
         val current = mutableUiState.value as? ReadingChallengesUiState.Ready ?: return
@@ -66,7 +72,7 @@ class ReadingChallengesViewModel(
         }
     }
 
-    fun retry() = fetch()
+    fun retry() = load()
 
     fun dismissMessage() {
         val current = mutableUiState.value as? ReadingChallengesUiState.Ready ?: return
