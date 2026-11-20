@@ -80,7 +80,7 @@ class AuthViewModelTest {
         viewModel.submit("secret123")
         runCurrent()
 
-        assertEquals(AuthUiState.SignedIn("reader@example.test"), viewModel.uiState.value)
+        assertEquals(AuthUiState.SignedIn("reader@example.test", "account-id"), viewModel.uiState.value)
         assertEquals(1, repository.signInCalls)
         assertTrue(!viewModel.uiState.value.toString().contains("secret123"))
     }

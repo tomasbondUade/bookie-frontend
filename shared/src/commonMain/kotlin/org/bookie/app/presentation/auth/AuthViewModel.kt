@@ -85,7 +85,7 @@ class AuthViewModel(repository: AuthRepository) : ViewModel() {
 
     private fun AuthState.toUiState(previous: AuthUiState.Form = AuthUiState.Form()): AuthUiState =
         when (this) {
-            is AuthState.SignedIn -> AuthUiState.SignedIn(email)
+            is AuthState.SignedIn -> AuthUiState.SignedIn(email, userId)
             is AuthState.EmailVerificationRequired -> AuthUiState.EmailVerificationRequired(email)
             is AuthState.Error -> previous.copy(error = message)
             AuthState.Expired -> previous.copy(error = "Tu sesión venció. Iniciá sesión nuevamente.")
