@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -34,8 +35,9 @@ import org.bookie.app.presentation.auth.AuthScreen
 import org.bookie.app.presentation.auth.AuthUiState
 import org.bookie.app.presentation.challenges.ReadingChallengesScreen
 import org.bookie.app.presentation.community.CommunityScreen
+import org.bookie.app.presentation.library.LibraryScreen
+import org.bookie.app.presentation.library.LibraryNotConnectedScreen
 import org.bookie.app.presentation.components.BookieComponentsScreen
-import org.bookie.app.presentation.library.LibraryExperienceScreen
 import org.bookie.app.presentation.lists.BookListsScreen
 import org.bookie.app.presentation.lists.LibraryWorkspaceScreen
 import org.bookie.app.presentation.navigation.AppDestination
@@ -100,10 +102,23 @@ private fun MainAppContent(
     var selectedSurface by rememberSaveable {
             mutableStateOf(AppSurface.MAIN.name)
         }
-    val fallbackMoodSearch = if (featureViewModels?.moodSearch == null) {
-            rememberConfiguredMoodSearchViewModel()
-        } else null
-    val moodSearchViewModel = featureViewModels?.moodSearch ?: fallbackMoodSearch
+    // Both Biblioteca and Buscar use the same authenticated client and session.
+    // The public-only fallback is retained when Supabase is not configured.
+    val configuredLibrary = if (featureViewModels == null) {
+        rememberConfiguredLibraryExperience()
+    } else null
+    val authenticatedMoodSearch = if (
+        featureViewModels?.moodSearch == null && configuredLibrary != null
+    ) {
+        remember(configuredLibrary) { configuredLibrary.moodSearchViewModel() }
+    } else null
+    val fallbackMoodSearch = if (
+        featureViewModels?.moodSearch == null && configuredLibrary == null
+    ) {
+        rememberConfiguredMoodSearchViewModel()
+    } else null
+    val moodSearchViewModel =
+        featureViewModels?.moodSearch ?: authenticatedMoodSearch ?: fallbackMoodSearch
     val fallbackBookReviews = if (featureViewModels?.bookReviews == null) {
             rememberConfiguredBookReviewsViewModel()
         } else null
@@ -213,6 +228,61 @@ private fun MainAppContent(
                     }
                 }
 
+                selectedDestination == AppDestination.LIBRARY -> {
+                    val libraryViewModel = featureViewModels?.libraryExperience
+                    val listsViewModel = featureViewModels?.bookLists
+                    when {
+                        libraryViewModel != null && listsViewModel != null -> LibraryWorkspaceScreen(
+                            libraryViewModel = libraryViewModel,
+                            listsViewModel = listsViewModel,
+                            onSignIn = featureViewModels.onSignIn,
+                            modifier = contentModifier,
+                        )
+                        listsViewModel != null -> BookListsScreen(
+                            viewModel = listsViewModel,
+                            onSignIn = featureViewModels.onSignIn,
+                            modifier = contentModifier,
+                        )
+                        libraryViewModel != null -> LibraryScreen(
+                            viewModel = libraryViewModel,
+                            onExploreBooks = {
+                                selectedRoute = AppDestination.SEARCH.route
+                                selectedSurface = AppSurface.MAIN.name
+                            },
+                            modifier = contentModifier,
+                        )
+                        configuredLibrary != null -> {
+                            val authState by configuredLibrary.authViewModel.uiState
+                                .collectAsStateWithLifecycle()
+                            val signedIn = authState as? AuthUiState.SignedIn
+                            if (signedIn != null) {
+                                // A fresh ViewModel per user prevents leaking previous
+                                // user's visible items across account switches.
+                                val accountLibrary = remember(configuredLibrary, signedIn.userId) {
+                                    configuredLibrary.libraryViewModel()
+                                }
+                                LibraryScreen(
+                                    viewModel = accountLibrary,
+                                    onExploreBooks = {
+                                        selectedRoute = AppDestination.SEARCH.route
+                                        selectedSurface = AppSurface.MAIN.name
+                                    },
+                                    modifier = contentModifier,
+                                )
+                            } else {
+                                AuthScreen(
+                                    viewModel = configuredLibrary.authViewModel,
+                                    modifier = contentModifier,
+                                )
+                            }
+                        }
+                        else -> LibraryNotConnectedScreen(
+                            onSignIn = featureViewModels?.onSignIn,
+                            modifier = contentModifier,
+                        )
+                    }
+                }
+
                 selectedDestination == AppDestination.COMMUNITY -> {
                     if (communityViewModel != null) {
                         CommunityScreen(
@@ -228,29 +298,6 @@ private fun MainAppContent(
                             Text("Falta configurar la URL del backend Bookie (bookie_api_base_url).")
                         }
                     }
-                }
-
-                selectedDestination == AppDestination.LIBRARY && featureViewModels?.bookLists != null &&
-                        featureViewModels.libraryExperience != null -> {
-                    LibraryWorkspaceScreen(
-                        libraryViewModel = featureViewModels.libraryExperience,
-                        listsViewModel = featureViewModels.bookLists,
-                        onSignIn = featureViewModels.onSignIn,
-                        modifier = contentModifier,
-                    )
-                }
-
-                selectedDestination == AppDestination.LIBRARY && featureViewModels?.bookLists != null -> {
-                    BookListsScreen(
-                        viewModel = featureViewModels.bookLists,
-                        onSignIn = featureViewModels.onSignIn,
-                        modifier = contentModifier,
-                    )
-                }
-
-                selectedDestination == AppDestination.LIBRARY &&
-                        featureViewModels?.libraryExperience != null -> {
-                    LibraryExperienceScreen(featureViewModels.libraryExperience, contentModifier)
                 }
 
                 surface == AppSurface.PREFERENCES &&

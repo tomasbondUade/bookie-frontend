@@ -17,3 +17,6 @@ captures
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
+
+# Local Supabase Auth config (public client key; machine-specific and never committed).
+androidApp/src/debug/res/values/bookie_supabase_local.xml

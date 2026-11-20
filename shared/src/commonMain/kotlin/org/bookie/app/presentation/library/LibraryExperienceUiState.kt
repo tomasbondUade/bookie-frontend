@@ -31,10 +31,39 @@ sealed interface LibraryActionState {
     data class Failed(val message: String) : LibraryActionState
 }
 
+/** Uncommitted changes owned by the ViewModel and exposed via StateFlow. */
+data class LibraryEditDraft(
+    val status: LibraryStatus,
+    val pageText: String,
+    val percentageText: String,
+) {
+    val canEditProgress: Boolean get() = status == LibraryStatus.READING
+
+    fun hasChangesFrom(entry: LibraryBookState): Boolean {
+        if (status != entry.status) return true
+        if (!canEditProgress) return false
+        val pageChanged = pageText.isNotBlank() &&
+            (pageText.toIntOrNull() == null || pageText.toIntOrNull() != entry.currentPage)
+        val percentageChanged = percentageText.isNotBlank() &&
+            (percentageText.toIntOrNull() == null ||
+                percentageText.toIntOrNull() != entry.progressPercentage)
+        return pageChanged || percentageChanged
+    }
+
+    companion object {
+        fun from(entry: LibraryBookState): LibraryEditDraft = LibraryEditDraft(
+            status = entry.status,
+            pageText = entry.currentPage?.toString().orEmpty(),
+            percentageText = entry.progressPercentage?.toString().orEmpty(),
+        )
+    }
+}
+
 data class LibraryExperienceUiState(
     val content: LibraryContentState = LibraryContentState.Idle,
     val statusFilter: LibraryStatus? = null,
     val favoritesOnly: Boolean = false,
     val action: LibraryActionState = LibraryActionState.Idle,
     val pendingRemoval: LibraryBookState? = null,
+    val drafts: Map<String, LibraryEditDraft> = emptyMap(),
 )

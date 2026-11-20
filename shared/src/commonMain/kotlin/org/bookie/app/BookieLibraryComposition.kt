@@ -11,7 +11,13 @@ import org.bookie.app.domain.usecase.ObserveLibraryOnlineFirst
 import org.bookie.app.domain.usecase.SaveLibraryState
 import org.bookie.app.presentation.library.LibraryExperienceViewModel
 
-/** Reuses the authenticated API client and account-scoped cache supplied by the platform. */
+/**
+ * The platform composition root supplies its existing JWT-aware API client,
+ * persistent SQLDelight cache and authentication. No fake accounts or API URLs.
+ *
+ * Clear the old user's cache on logout/account switch (#63); this function
+ * does not own the AuthClientBundle or its lifecycle.
+ */
 fun createAuthenticatedLibraryExperienceViewModel(
     authClients: AuthClientBundle,
     cache: LibraryCache,
