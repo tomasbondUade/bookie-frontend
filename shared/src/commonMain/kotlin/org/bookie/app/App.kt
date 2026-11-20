@@ -61,18 +61,6 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
             rememberConfiguredAccountExperience()
         } else null
         val authViewModel = featureViewModels?.auth ?: configuredAccount?.authViewModel
-        val configuredSearch = if (configuredAccount != null) {
-            remember(configuredAccount) { configuredAccount.moodSearchViewModel() }
-        } else null
-        val configuredLibrary = if (configuredAccount != null) {
-            remember(configuredAccount) { configuredAccount.libraryViewModel() }
-        } else null
-        val configuredPreferences = if (configuredAccount != null) {
-            remember(configuredAccount) { configuredAccount.readingPreferencesViewModel() }
-        } else null
-        val configuredStats = if (configuredAccount != null) {
-            remember(configuredAccount) { configuredAccount.readingStatsViewModel() }
-        } else null
         if (authViewModel == null) {
             MainAppContent(featureViewModels)
         } else {
@@ -101,14 +89,21 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
             } else {
                 val account = authState as AuthUiState.SignedIn
                 key(account.userId) {
+                    // Never reuse a session ViewModel with state loaded for another account.
+                    // These instances exist only while the corresponding account is signed in.
+                    val sessionFeatures = configuredAccount?.let { root ->
+                        remember(root, account.userId) {
+                            root.createFeaturesForAccount(account.userId)
+                        }
+                    }
                     MainAppContent(
                         featureViewModels = featureViewModels,
                         currentUserId = account.userId,
                         accountViewModel = authViewModel,
-                        configuredMoodSearch = configuredSearch,
-                        configuredLibraryViewModel = configuredLibrary,
-                        configuredReadingPreferencesViewModel = configuredPreferences,
-                        configuredReadingStatsViewModel = configuredStats,
+                        configuredMoodSearch = sessionFeatures?.moodSearch,
+                        configuredLibraryViewModel = sessionFeatures?.library,
+                        configuredReadingPreferencesViewModel = sessionFeatures?.preferences,
+                        configuredReadingStatsViewModel = sessionFeatures?.stats,
                     )
                 }
             }
