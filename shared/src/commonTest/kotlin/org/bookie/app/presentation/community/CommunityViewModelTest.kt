@@ -10,9 +10,11 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.bookie.app.domain.model.AuthState
+import org.bookie.app.domain.model.CommunityComment
 import org.bookie.app.domain.model.Community
 import org.bookie.app.domain.model.CommunityPage
 import org.bookie.app.domain.model.CommunityPost
+import org.bookie.app.domain.model.CreateCommunityCommentInput
 import org.bookie.app.domain.model.CreateCommunityInput
 import org.bookie.app.domain.model.PostAuthor
 import org.bookie.app.domain.repository.AuthRepository
@@ -21,6 +23,7 @@ import org.bookie.app.domain.repository.CommunityRepository
 import org.bookie.app.domain.result.Resource
 import org.bookie.app.domain.result.ResourceErrorKind
 import org.bookie.app.domain.usecase.CreateCommunity
+import org.bookie.app.domain.usecase.CreateCommunityComment
 import org.bookie.app.domain.usecase.GetCommunities
 import org.bookie.app.domain.usecase.GetCommunityPosts
 import org.bookie.app.domain.usecase.GetRecommendedCommunities
@@ -156,6 +159,66 @@ class CommunityViewModelTest {
     }
 
     @Test
+    fun commentIsShownOnlyAfterServerConfirmationAndCanBeRepliedTo() = runTest {
+        val repo = FakeRepository()
+        val vm = viewModel(repo, FakeAuth())
+        vm.loadCommunities()
+        runCurrent()
+        vm.selectCommunity(assertIs<CommunityCatalogState.Ready>(vm.catalog.value).communities.single())
+        runCurrent()
+
+        vm.toggleCommentComposer("p1")
+        vm.onCommentDraftChanged("p1", "Buen libro")
+        vm.sendComment("p1")
+        assertEquals(emptyList(), vm.commentThreads.value["p1"]?.comments.orEmpty())
+        runCurrent()
+
+        val created = vm.commentThreads.value.getValue("p1").comments.single()
+        assertEquals("Buen libro", created.content)
+        assertEquals(null, created.parentId)
+        assertEquals("Comentario confirmado por el servidor.", vm.commentThreads.value.getValue("p1").notice)
+
+        vm.replyToComment("p1", created)
+        vm.onCommentDraftChanged("p1", "Gracias")
+        vm.sendComment("p1")
+        runCurrent()
+
+        assertEquals(CreateCommunityCommentInput("Gracias", created.id), repo.lastCommentInput)
+        assertEquals(created.id, vm.commentThreads.value.getValue("p1").comments.last().parentId)
+    }
+
+    @Test
+    fun guestsCannotSendCommentsAndServerErrorsDoNotInventThem() = runTest {
+        val repo = FakeRepository()
+        val guest = viewModel(repo)
+        guest.loadCommunities()
+        runCurrent()
+        guest.selectCommunity(assertIs<CommunityCatalogState.Ready>(guest.catalog.value).communities.single())
+        runCurrent()
+        guest.onCommentDraftChanged("p1", "Comentario")
+        guest.sendComment("p1")
+        runCurrent()
+
+        assertEquals(0, repo.commentCalls)
+        assertEquals(true, guest.commentThreads.value.getValue("p1").signInRequired)
+
+        val signedIn = viewModel(repo, FakeAuth())
+        signedIn.loadCommunities()
+        runCurrent()
+        signedIn.selectCommunity(assertIs<CommunityCatalogState.Ready>(signedIn.catalog.value).communities.single())
+        runCurrent()
+        repo.commentResult = Resource.Error("Sin conexión", ResourceErrorKind.NETWORK)
+        signedIn.onCommentDraftChanged("p1", "Comentario")
+        signedIn.sendComment("p1")
+        runCurrent()
+
+        val state = signedIn.commentThreads.value.getValue("p1")
+        assertEquals(emptyList(), state.comments)
+        assertEquals("Comentario", state.draft)
+        assertEquals("Sin conexión. Revisá tu conexión e intentá de nuevo.", state.error)
+    }
+
+    @Test
     fun serverErrorsDoNotCloseFormOrInventCommunity() = runTest {
         val repo = FakeRepository()
         repo.createResult = Resource.Error("HTTP 409", ResourceErrorKind.CONFLICT)
@@ -198,6 +261,7 @@ class CommunityViewModelTest {
             createCommunity = CreateCommunity(repo),
             getRecommended = GetRecommendedCommunities(repo),
             getPosts = GetCommunityPosts(repo),
+            createComment = CreateCommunityComment(repo),
             authRepository = auth,
         )
 
@@ -215,6 +279,9 @@ class CommunityViewModelTest {
         var createCalls = 0
         var lastCreateInput: CreateCommunityInput? = null
         var createResult: Resource<Community>? = null
+        var commentCalls = 0
+        var lastCommentInput: CreateCommunityCommentInput? = null
+        var commentResult: Resource<CommunityComment>? = null
 
         override suspend fun listCommunities(page: Int, limit: Int): Resource<CommunityPage> {
             requestedPages += page
@@ -251,6 +318,24 @@ class CommunityViewModelTest {
             communityId: String,
             input: org.bookie.app.domain.model.CreateCommunityPostInput,
         ): Resource<CommunityPost> = Resource.Error("No se usa")
+
+        override suspend fun createComment(
+            postId: String,
+            input: CreateCommunityCommentInput,
+        ): Resource<CommunityComment> {
+            commentCalls++
+            lastCommentInput = input
+            return commentResult ?: Resource.Success(
+                CommunityComment(
+                    id = "comment-$commentCalls",
+                    content = input.content,
+                    postId = postId,
+                    authorId = "user-1",
+                    parentId = input.parentId,
+                    createdAt = "2026-11-20T12:00:00Z",
+                ),
+            )
+        }
     }
 
     private class FakeAuth : AuthRepository {

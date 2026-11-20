@@ -8,12 +8,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.bookie.app.domain.model.AuthState
 import org.bookie.app.domain.model.Community
+import org.bookie.app.domain.model.CommunityComment
 import org.bookie.app.domain.model.CommunityPost
+import org.bookie.app.domain.model.CreateCommunityCommentInput
 import org.bookie.app.domain.model.CreateCommunityInput
 import org.bookie.app.domain.repository.AuthRepository
 import org.bookie.app.domain.result.Resource
 import org.bookie.app.domain.result.ResourceErrorKind
 import org.bookie.app.domain.usecase.CreateCommunity
+import org.bookie.app.domain.usecase.CreateCommunityComment
 import org.bookie.app.domain.usecase.GetCommunities
 import org.bookie.app.domain.usecase.GetCommunityPosts
 import org.bookie.app.domain.usecase.GetRecommendedCommunities
@@ -23,6 +26,7 @@ class CommunityViewModel(
     private val createCommunity: CreateCommunity,
     private val getRecommended: GetRecommendedCommunities,
     private val getPosts: GetCommunityPosts,
+    private val createComment: CreateCommunityComment,
     private val authRepository: AuthRepository? = null,
 ) : ViewModel() {
     private val mutableCatalog = MutableStateFlow<CommunityCatalogState>(CommunityCatalogState.Idle)
@@ -37,6 +41,9 @@ class CommunityViewModel(
 
     private val mutablePosts = MutableStateFlow<CommunityPostsState>(CommunityPostsState.Idle)
     val posts = mutablePosts.asStateFlow()
+
+    private val mutableCommentThreads = MutableStateFlow<Map<String, CommunityCommentThreadState>>(emptyMap())
+    val commentThreads = mutableCommentThreads.asStateFlow()
 
     private val mutableCreate = MutableStateFlow(CommunityCreateUiState())
     val create = mutableCreate.asStateFlow()
@@ -221,6 +228,132 @@ class CommunityViewModel(
         mutablePosts.value = CommunityPostsState.Idle
     }
 
+    fun toggleCommentComposer(postId: String) {
+        if (!isPostVisible(postId)) return
+        updateCommentThread(postId) { it.copy(expanded = !it.expanded, error = null, notice = null) }
+    }
+
+    fun onCommentDraftChanged(postId: String, value: String) {
+        updateCommentThread(postId) {
+            if (it.sending) it else it.copy(draft = value, error = null, notice = null, signInRequired = false)
+        }
+    }
+
+    fun replyToComment(postId: String, comment: CommunityComment) {
+        if (comment.postId != postId || !isPostVisible(postId)) return
+        val thread = mutableCommentThreads.value[postId] ?: CommunityCommentThreadState()
+        if (thread.comments.none { it.id == comment.id }) return
+        updateCommentThread(postId) {
+            it.copy(
+                expanded = true,
+                replyTo = comment,
+                error = null,
+                notice = null,
+                signInRequired = false,
+            )
+        }
+    }
+
+    fun cancelReply(postId: String) {
+        updateCommentThread(postId) { it.copy(replyTo = null, error = null, signInRequired = false) }
+    }
+
+    fun dismissCommentFeedback(postId: String) {
+        updateCommentThread(postId) { it.copy(error = null, notice = null, signInRequired = false) }
+    }
+
+    fun sendComment(postId: String) {
+        if (!isPostVisible(postId)) return
+        val current = mutableCommentThreads.value[postId] ?: CommunityCommentThreadState()
+        if (current.sending) return
+        if (authRepository?.state?.value !is AuthState.SignedIn) {
+            updateCommentThread(postId) {
+                it.copy(expanded = true, signInRequired = true, error = null, notice = null)
+            }
+            return
+        }
+        val content = current.draft.trim()
+        if (content.isEmpty() || content.length > 5000) {
+            updateCommentThread(postId) {
+                it.copy(
+                    expanded = true,
+                    error = "El comentario debe tener entre 1 y 5000 caracteres.",
+                    notice = null,
+                )
+            }
+            return
+        }
+        current.replyTo?.let { parent ->
+            if (parent.postId != postId || current.comments.none { it.id == parent.id }) {
+                updateCommentThread(postId) {
+                    it.copy(replyTo = null, error = "No se pudo validar el comentario al que respondés.")
+                }
+                return
+            }
+        }
+
+        updateCommentThread(postId) {
+            it.copy(sending = true, error = null, notice = null, signInRequired = false)
+        }
+        viewModelScope.launch {
+            val result = try {
+                createComment(postId, CreateCommunityCommentInput(content, current.replyTo?.id))
+            } catch (cancel: CancellationException) {
+                throw cancel
+            } catch (error: Exception) {
+                Resource.Error(error.message ?: "No se pudo enviar el comentario.")
+            }
+            val latest = mutableCommentThreads.value[postId] ?: CommunityCommentThreadState()
+            when (result) {
+                is Resource.Success -> {
+                    val comment = result.data
+                    if (comment.postId != postId || comment.parentId != current.replyTo?.id) {
+                        mutableCommentThreads.value = mutableCommentThreads.value + (postId to latest.copy(
+                            sending = false,
+                            error = "El servidor devolvió una respuesta que no coincide con esta publicación.",
+                        ))
+                        return@launch
+                    }
+                    mutableCommentThreads.value = mutableCommentThreads.value + (postId to latest.copy(
+                        comments = (latest.comments + comment).distinctBy(CommunityComment::id),
+                        draft = "",
+                        replyTo = null,
+                        sending = false,
+                        signInRequired = false,
+                        error = null,
+                        notice = "Comentario confirmado por el servidor.",
+                    ))
+                }
+                is Resource.Error -> {
+                    val requiresLogin = result.kind == ResourceErrorKind.UNAUTHORIZED
+                    val message = when (result.kind) {
+                        ResourceErrorKind.VALIDATION -> "Revisá el comentario; debe tener entre 1 y 5000 caracteres."
+                        ResourceErrorKind.NOT_FOUND -> "La publicación o el comentario al que respondés ya no existe."
+                        ResourceErrorKind.NETWORK -> "Sin conexión. Revisá tu conexión e intentá de nuevo."
+                        else -> result.message
+                    }
+                    mutableCommentThreads.value = mutableCommentThreads.value + (postId to latest.copy(
+                        sending = false,
+                        error = if (requiresLogin) "Iniciá sesión para comentar." else message,
+                        signInRequired = requiresLogin,
+                        notice = null,
+                    ))
+                }
+            }
+        }
+    }
+
+    private fun isPostVisible(postId: String): Boolean =
+        (mutablePosts.value as? CommunityPostsState.Ready)?.posts?.any { it.id == postId } == true
+
+    private fun updateCommentThread(
+        postId: String,
+        transform: (CommunityCommentThreadState) -> CommunityCommentThreadState,
+    ) {
+        val current = mutableCommentThreads.value[postId] ?: CommunityCommentThreadState()
+        mutableCommentThreads.value = mutableCommentThreads.value + (postId to transform(current))
+    }
+
     fun refreshPosts() {
         val communityId = mutableSelected.value?.id ?: return
         val version = ++postsVersion
@@ -282,5 +415,16 @@ data class CommunityCreateUiState(
     val description: String = "",
     val saving: Boolean = false,
     val error: String? = null,
+    val signInRequired: Boolean = false,
+)
+
+data class CommunityCommentThreadState(
+    val expanded: Boolean = false,
+    val comments: List<CommunityComment> = emptyList(),
+    val draft: String = "",
+    val replyTo: CommunityComment? = null,
+    val sending: Boolean = false,
+    val error: String? = null,
+    val notice: String? = null,
     val signInRequired: Boolean = false,
 )

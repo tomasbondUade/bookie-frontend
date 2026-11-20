@@ -6,4 +6,5 @@ import org.bookie.app.domain.result.Resource
 interface CommunityPostsRepository {
     suspend fun getPosts(communityId: String, limit: Int = 20): Resource<List<CommunityPost>>
     suspend fun createPost(communityId: String, input: CreateCommunityPostInput): Resource<CommunityPost>
+    suspend fun createComment(postId: String, input: CreateCommunityCommentInput): Resource<CommunityComment>
 }

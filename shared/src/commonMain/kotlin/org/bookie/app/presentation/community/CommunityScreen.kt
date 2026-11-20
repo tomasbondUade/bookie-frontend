@@ -11,7 +11,9 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -21,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.bookie.app.domain.model.Community
+import org.bookie.app.domain.model.CommunityComment
 import org.bookie.app.presentation.components.BookieEmptyState
 import org.bookie.app.presentation.components.BookieErrorState
 import org.bookie.app.presentation.components.BookieLoadingState
@@ -37,6 +40,7 @@ fun CommunityScreen(
     val recommendations by viewModel.recommendations.collectAsStateWithLifecycle()
     val selected by viewModel.selected.collectAsStateWithLifecycle()
     val posts by viewModel.posts.collectAsStateWithLifecycle()
+    val commentThreads by viewModel.commentThreads.collectAsStateWithLifecycle()
     val create by viewModel.create.collectAsStateWithLifecycle()
 
     LaunchedEffect(viewModel) { viewModel.loadCommunities() }
@@ -121,6 +125,24 @@ fun CommunityScreen(
                                         onClick = { compatibilityViewModel.compareWith(targetUserId) },
                                     ) { Text("Ver compatibilidad lectora") }
                                 }
+                                val commentState = commentThreads[post.id] ?: CommunityCommentThreadState()
+                                TextButton(
+                                    onClick = { viewModel.toggleCommentComposer(post.id) },
+                                    enabled = !commentState.sending,
+                                ) {
+                                    Text(if (commentState.expanded) "Cerrar comentarios" else "Comentar")
+                                }
+                                if (commentState.expanded) {
+                                    CommunityCommentComposer(
+                                        state = commentState,
+                                        onDraftChanged = { viewModel.onCommentDraftChanged(post.id, it) },
+                                        onReply = { viewModel.replyToComment(post.id, it) },
+                                        onCancelReply = { viewModel.cancelReply(post.id) },
+                                        onSend = { viewModel.sendComment(post.id) },
+                                        onDismissFeedback = { viewModel.dismissCommentFeedback(post.id) },
+                                        onSignIn = onSignIn,
+                                    )
+                                }
                             }
                         }
                     }
@@ -189,6 +211,74 @@ fun CommunityScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun CommunityCommentComposer(
+    state: CommunityCommentThreadState,
+    onDraftChanged: (String) -> Unit,
+    onReply: (CommunityComment) -> Unit,
+    onCancelReply: () -> Unit,
+    onSend: () -> Unit,
+    onDismissFeedback: () -> Unit,
+    onSignIn: (() -> Unit)?,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            "El backend todavía no permite cargar comentarios anteriores.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        state.comments.forEach { comment ->
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                if (comment.parentId != null) {
+                    Text("Respuesta", style = MaterialTheme.typography.labelSmall)
+                }
+                Text(comment.content)
+                Text(comment.createdAt.substringBefore('T'), style = MaterialTheme.typography.labelSmall)
+                TextButton(
+                    onClick = { onReply(comment) },
+                    enabled = !state.sending,
+                ) { Text("Responder") }
+            }
+            HorizontalDivider()
+        }
+        state.replyTo?.let { parent ->
+            Text("Respondiendo a: ${parent.content}", style = MaterialTheme.typography.bodySmall)
+            TextButton(onClick = onCancelReply, enabled = !state.sending) { Text("Cancelar respuesta") }
+        }
+        state.notice?.let { message ->
+            Text(message, color = MaterialTheme.colorScheme.primary)
+            TextButton(onClick = onDismissFeedback) { Text("Cerrar") }
+        }
+        state.error?.let { message ->
+            Text(message, color = MaterialTheme.colorScheme.error)
+            TextButton(onClick = onDismissFeedback) { Text("Cerrar") }
+        }
+        if (state.signInRequired) {
+            if (onSignIn != null) {
+                Button(onClick = onSignIn, modifier = Modifier.fillMaxWidth()) {
+                    Text("Iniciar sesión")
+                }
+            } else {
+                Text("Iniciá sesión para comentar.")
+            }
+        }
+        OutlinedTextField(
+            value = state.draft,
+            onValueChange = { if (it.length <= 5000) onDraftChanged(it) },
+            label = { Text(if (state.replyTo == null) "Comentario" else "Respuesta") },
+            modifier = Modifier.fillMaxWidth(),
+            minLines = 2,
+            enabled = !state.sending,
+        )
+        Button(
+            onClick = onSend,
+            enabled = !state.sending && state.draft.isNotBlank(),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(if (state.sending) "Enviando..." else "Enviar")
         }
     }
 }
