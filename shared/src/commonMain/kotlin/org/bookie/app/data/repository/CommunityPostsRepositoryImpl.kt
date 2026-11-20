@@ -15,6 +15,12 @@ class CommunityPostsRepositoryImpl(
     override suspend fun getPosts(communityId: String, limit: Int): Resource<List<CommunityPost>> =
         safely { remote.getPosts(communityId, limit).map { it.toDomain() } }
 
+    override suspend fun getComments(
+        postId: String,
+        limit: Int,
+    ): Resource<List<CommunityComment>> =
+        safely { remote.getComments(postId, limit).map { it.toDomain() } }
+
     override suspend fun createPost(
         communityId: String, input: CreateCommunityPostInput,
     ): Resource<CommunityPost> {
