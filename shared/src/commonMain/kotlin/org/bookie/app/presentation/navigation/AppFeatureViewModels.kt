@@ -1,5 +1,6 @@
 package org.bookie.app.presentation.navigation
 
+import org.bookie.app.presentation.auth.AuthViewModel
 import org.bookie.app.presentation.community.CommunityViewModel
 import org.bookie.app.presentation.profile.ReadingStatsViewModel
 import org.bookie.app.presentation.search.BookReviewsViewModel
@@ -17,4 +18,5 @@ data class AppFeatureViewModels(
     val moodSearch: MoodSearchViewModel? = null,
     val bookReviews: BookReviewsViewModel? = null,
     val community: CommunityViewModel? = null,
+    val auth: AuthViewModel? = null,
 )

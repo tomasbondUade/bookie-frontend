@@ -28,6 +28,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.bookie.app.presentation.auth.AuthScreen
+import org.bookie.app.presentation.auth.AuthUiState
 import org.bookie.app.presentation.community.CommunityScreen
 import org.bookie.app.presentation.components.BookieComponentsScreen
 import org.bookie.app.presentation.navigation.AppDestination
@@ -42,31 +45,47 @@ import org.bookie.app.theme.BookieTheme
 @Preview
 fun App(featureViewModels: AppFeatureViewModels? = null) {
     BookieTheme {
-        var selectedRoute by rememberSaveable {
+        val authViewModel = featureViewModels?.auth
+        if (authViewModel == null) {
+            MainAppContent(featureViewModels)
+        } else {
+            val authState by authViewModel.uiState.collectAsStateWithLifecycle()
+            if (authState !is AuthUiState.SignedIn) {
+                AuthScreen(viewModel = authViewModel)
+            } else {
+                MainAppContent(featureViewModels)
+            }
+        }
+    }
+}
+
+@Composable
+private fun MainAppContent(featureViewModels: AppFeatureViewModels?) {
+    var selectedRoute by rememberSaveable {
             mutableStateOf(AppDestination.HOME.route)
         }
-        var selectedSurface by rememberSaveable {
+    var selectedSurface by rememberSaveable {
             mutableStateOf(AppSurface.MAIN.name)
         }
-        val fallbackMoodSearch = if (featureViewModels?.moodSearch == null) {
+    val fallbackMoodSearch = if (featureViewModels?.moodSearch == null) {
             rememberConfiguredMoodSearchViewModel()
         } else null
-        val moodSearchViewModel = featureViewModels?.moodSearch ?: fallbackMoodSearch
-        val fallbackBookReviews = if (featureViewModels?.bookReviews == null) {
+    val moodSearchViewModel = featureViewModels?.moodSearch ?: fallbackMoodSearch
+    val fallbackBookReviews = if (featureViewModels?.bookReviews == null) {
             rememberConfiguredBookReviewsViewModel()
         } else null
-        val bookReviewsViewModel = featureViewModels?.bookReviews ?: fallbackBookReviews
-        val fallbackCommunity = if (featureViewModels?.community == null) {
+    val bookReviewsViewModel = featureViewModels?.bookReviews ?: fallbackBookReviews
+    val fallbackCommunity = if (featureViewModels?.community == null) {
             rememberConfiguredCommunityViewModel()
         } else null
-        val communityViewModel = featureViewModels?.community ?: fallbackCommunity
-        val selectedDestination =
+    val communityViewModel = featureViewModels?.community ?: fallbackCommunity
+    val selectedDestination =
             AppDestination.fromRoute(selectedRoute) ?: AppDestination.HOME
-        val surface = AppSurface.entries.firstOrNull {
+    val surface = AppSurface.entries.firstOrNull {
             it.name == selectedSurface
         } ?: AppSurface.MAIN
 
-        Scaffold(
+    Scaffold(
             modifier = Modifier.fillMaxSize(),
             bottomBar = {
                 NavigationBar {
@@ -90,11 +109,11 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
                     }
                 }
             },
-        ) { contentPadding ->
-            val contentModifier =
+    ) { contentPadding ->
+        val contentModifier =
                 Modifier.fillMaxSize().padding(contentPadding)
 
-            when {
+        when {
                 surface == AppSurface.COMPONENTS_SHOWCASE -> {
                     BookieComponentsScreen(
                         modifier = contentModifier,
@@ -180,7 +199,6 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
                     selectedDestination,
                     contentModifier,
                 )
-            }
         }
     }
 }
