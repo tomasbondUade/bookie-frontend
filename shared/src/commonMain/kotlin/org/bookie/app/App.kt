@@ -67,6 +67,12 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
         val configuredLibrary = if (configuredAccount != null) {
             remember(configuredAccount) { configuredAccount.libraryViewModel() }
         } else null
+        val configuredPreferences = if (configuredAccount != null) {
+            remember(configuredAccount) { configuredAccount.readingPreferencesViewModel() }
+        } else null
+        val configuredStats = if (configuredAccount != null) {
+            remember(configuredAccount) { configuredAccount.readingStatsViewModel() }
+        } else null
         if (authViewModel == null) {
             MainAppContent(featureViewModels)
         } else {
@@ -101,6 +107,8 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
                         accountViewModel = authViewModel,
                         configuredMoodSearch = configuredSearch,
                         configuredLibraryViewModel = configuredLibrary,
+                        configuredReadingPreferencesViewModel = configuredPreferences,
+                        configuredReadingStatsViewModel = configuredStats,
                     )
                 }
             }
@@ -115,6 +123,8 @@ private fun MainAppContent(
     accountViewModel: org.bookie.app.presentation.auth.AuthViewModel? = null,
     configuredMoodSearch: MoodSearchViewModel? = null,
     configuredLibraryViewModel: org.bookie.app.presentation.library.LibraryExperienceViewModel? = null,
+    configuredReadingPreferencesViewModel: org.bookie.app.presentation.preferences.ReadingPreferencesViewModel? = null,
+    configuredReadingStatsViewModel: org.bookie.app.presentation.profile.ReadingStatsViewModel? = null,
 ) {
     var selectedRoute by rememberSaveable {
             mutableStateOf(AppDestination.HOME.route)
@@ -122,6 +132,8 @@ private fun MainAppContent(
     var selectedSurface by rememberSaveable {
             mutableStateOf(AppSurface.MAIN.name)
         }
+    val profilePreferences = featureViewModels?.readingPreferences ?: configuredReadingPreferencesViewModel
+    val profileStats = featureViewModels?.readingStats ?: configuredReadingStatsViewModel
     val fallbackMoodSearch = if (featureViewModels?.moodSearch == null && configuredMoodSearch == null) {
             rememberConfiguredMoodSearchViewModel()
         } else null
@@ -281,12 +293,12 @@ private fun MainAppContent(
                     LibraryExperienceScreen(configuredLibraryViewModel, contentModifier)
                 }
 
-                surface == AppSurface.READING_STATS && featureViewModels != null -> {
+                surface == AppSurface.READING_STATS && profileStats != null -> {
                     ReadingStatsScreen(
-                        viewModel = featureViewModels.readingStats,
+                        viewModel = profileStats,
                         modifier = contentModifier,
                         onSessionExpired = featureViewModels.onSignIn,
-                        onEditPreferences = featureViewModels.readingPreferences?.let { preferences ->
+                        onEditPreferences = profilePreferences?.let { preferences ->
                             {
                                 preferences.beginEdit()
                                 selectedSurface = AppSurface.PREFERENCES.name
@@ -299,12 +311,12 @@ private fun MainAppContent(
                         surface == AppSurface.MAIN -> {
                     AccountScreen(
                         authViewModel = accountViewModel,
-                        onOpenStatistics = if (featureViewModels != null) {
+                        onOpenStatistics = if (profileStats != null) {
                             { selectedSurface = AppSurface.READING_STATS.name }
                         } else null,
-                        onOpenPreferences = featureViewModels?.readingPreferences?.let { preferences ->
+                        onOpenPreferences = profilePreferences?.let { preferences ->
                             {
-                                preferences.beginEdit()
+                                currentUserId?.let(preferences::loadForAccount)
                                 selectedSurface = AppSurface.PREFERENCES.name
                             }
                         },
@@ -313,15 +325,15 @@ private fun MainAppContent(
                 }
 
                 surface == AppSurface.PREFERENCES &&
-                        featureViewModels?.readingPreferences != null -> {
+                        profilePreferences != null -> {
                     ReadingPreferencesScreen(
-                        viewModel = featureViewModels.readingPreferences,
+                        viewModel = profilePreferences,
                         modifier = contentModifier,
                         onClose = {
                             selectedRoute = AppDestination.PROFILE.route
                             selectedSurface = AppSurface.MAIN.name
                         },
-                        onSignIn = featureViewModels.onSignIn,
+                        onSignIn = featureViewModels?.onSignIn,
                     )
                 }
 

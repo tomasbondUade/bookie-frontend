@@ -6,6 +6,11 @@ import org.bookie.app.data.local.LibraryCache
 import org.bookie.app.presentation.auth.AuthViewModel
 import org.bookie.app.presentation.library.LibraryExperienceViewModel
 import org.bookie.app.presentation.search.MoodSearchViewModel
+import org.bookie.app.presentation.preferences.ReadingPreferencesViewModel
+import org.bookie.app.presentation.profile.ReadingStatsViewModel
+import org.bookie.app.data.remote.KtorReadingStatsRemoteDataSource
+import org.bookie.app.data.repository.ReadingStatsRepositoryImpl
+import org.bookie.app.domain.usecase.GetReadingStats
 
 /**
  * One account-scoped composition root for authentication and protected API flows.
@@ -21,6 +26,15 @@ internal class ConfiguredAccountExperience(
 
     fun libraryViewModel(): LibraryExperienceViewModel =
         createAuthenticatedLibraryExperienceViewModel(clients, cache)
+
+    fun readingPreferencesViewModel(): ReadingPreferencesViewModel =
+        createAuthenticatedReadingPreferencesViewModel(clients)
+
+    fun readingStatsViewModel(): ReadingStatsViewModel = ReadingStatsViewModel(
+        GetReadingStats(ReadingStatsRepositoryImpl(
+            KtorReadingStatsRemoteDataSource(clients.bookieClient),
+        )),
+    )
 
     fun close() = clients.close()
 }
