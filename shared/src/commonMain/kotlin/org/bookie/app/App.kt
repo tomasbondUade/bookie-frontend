@@ -191,6 +191,42 @@ private fun MainAppContent(
         }
     }
 
+    val canHandleSystemBack = surface != AppSurface.MAIN ||
+        selectedDestination != AppDestination.HOME || bookDetailOpen
+    SystemBackHandler(enabled = canHandleSystemBack) {
+        when {
+            surface == AppSurface.AUTH -> {
+                selectedRoute = returnRoute
+                selectedSurface = returnSurface
+            }
+            surface == AppSurface.SERIES_READING -> {
+                selectedSurface = AppSurface.SERIES_DISCOVERY.name
+            }
+            surface == AppSurface.SERIES_DISCOVERY ||
+                surface == AppSurface.BOOK_TINDER ||
+                surface == AppSurface.READING_CHALLENGES ||
+                surface == AppSurface.COMPONENTS_SHOWCASE -> {
+                selectedSurface = AppSurface.MAIN.name
+            }
+            surface == AppSurface.READING_PROGRESS -> {
+                featureViewModels?.libraryExperience?.refresh()
+                selectedProgressEntryId = null
+                selectedSurface = AppSurface.MAIN.name
+            }
+            surface == AppSurface.PREFERENCES -> {
+                selectedRoute = AppDestination.PROFILE.route
+                selectedSurface = AppSurface.MAIN.name
+            }
+            bookDetailOpen -> {
+                searchViewModel?.showResults()
+                moodSearchViewModel?.showResults()
+            }
+            selectedDestination != AppDestination.HOME -> {
+                selectedRoute = AppDestination.HOME.route
+            }
+        }
+    }
+
     Scaffold(
             modifier = Modifier.fillMaxSize(),
             bottomBar = {
@@ -237,8 +273,8 @@ private fun MainAppContent(
                             viewModel = authViewModel,
                             modifier = contentModifier,
                             onBack = {
-                                selectedSurface = AppSurface.MAIN.name
-                                selectedRoute = AppDestination.HOME.route
+                                selectedSurface = returnSurface
+                                selectedRoute = returnRoute
                             },
                         )
                     } else {
