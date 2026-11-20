@@ -84,7 +84,7 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
             ) {
                 ReadingPreferencesScreen(
                     viewModel = preferencesViewModel,
-                    onSignIn = featureViewModels?.onSignIn,
+                    onSignIn = featureViewModels.onSignIn,
                 )
             } else {
                 val account = authState as AuthUiState.SignedIn

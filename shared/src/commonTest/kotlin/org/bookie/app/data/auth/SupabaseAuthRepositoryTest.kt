@@ -177,7 +177,7 @@ class SupabaseAuthRepositoryTest {
         assertIs<AuthState.SignedOut>(repo(FakeRemote(), MemoryStore(), FakeSync()).restoreSession())
     }
 
-    private fun repo(remote: FakeRemote, store: MemoryStore, sync: FakeSync) =
+    private fun repo(remote: FakeRemote, store: MemoryStore, sync: BookieUserSyncRemoteDataSource) =
         SupabaseAuthRepository(remote, store, sync, clock = { now })
 
     private class MemoryStore(var value: StoredAuthSession? = null) : SecureSessionStore {
