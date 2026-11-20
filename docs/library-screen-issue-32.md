@@ -126,3 +126,20 @@ ADB ports 3000 and 54321 when using a local server.
 
 Session cleanup/account switching still belongs to #63; do not claim those
 flows are covered here.
+
+## State-driven progress editing (#32)
+
+The screen now stages status/progress edits as immutable `LibraryEditDraft`
+records in the existing `LibraryExperienceUiState.drafts` map (StateFlow
+owned by the ViewModel). Compose displays draft state and dispatches events.
+Selecting a status does not call the backend; "Guardar cambios" performs
+one authenticated server write for status and optional progress fields.
+
+- TO_READ (Pendiente): show recorded progress but do not allow editing it.
+- READING (Leyendo): optional current page and percentage (0–100), both
+  staged before the same server-confirmed save.
+- READ (Terminado): recorded progress is read-only.
+- "Cancelar" discards the draft; server data remains unchanged.
+- On failed save, the draft remains available for retry.
+- The backend itself does not currently enforce state-based edit restrictions;
+  these are UI and ViewModel rules for issue #32.

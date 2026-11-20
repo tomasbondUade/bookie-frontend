@@ -284,6 +284,99 @@ class LibraryExperienceViewModelTest {
         assertIs<LibraryActionState.Succeeded>(viewModel.uiState.value.action)
     }
 
+
+    @Test
+    fun `staged reading status and progress are saved atomically after confirmation`() = runTest {
+        val gate = CompletableDeferred<Resource<LibraryBookState>>()
+        val repository = FakeRepository().apply { saveResponse = { gate.await() } }
+        val feed = FakeFeed().apply {
+            respond = {
+                flowOf(LibraryLoad.Fresh(libraryPage(1, 1,
+                    sampleState(status = LibraryStatus.TO_READ, currentPage = 0))))
+            }
+        }
+        val viewModel = vm(feed, repository)
+        viewModel.refresh()
+        runCurrent()
+
+        viewModel.selectDraftStatus("state-1", LibraryStatus.READING)
+        viewModel.editDraftPage("state-1", "42")
+        viewModel.editDraftPercentage("state-1", "25")
+        assertTrue(repository.saveCalls.isEmpty())
+        assertEquals(LibraryStatus.TO_READ, displayed(viewModel).single().status)
+        val draft = viewModel.uiState.value.drafts.getValue("state-1")
+        assertTrue(draft.canEditProgress)
+        assertEquals("42", draft.pageText)
+
+        viewModel.saveDraft("state-1")
+        runCurrent()
+        assertEquals(
+            LibraryStateInput(
+                bookId = "book-1",
+                status = LibraryStatus.READING,
+                currentPage = 42,
+                progressPercentage = 25,
+            ),
+            repository.saveCalls.single(),
+        )
+        assertIs<LibraryActionState.Working>(viewModel.uiState.value.action)
+
+        gate.complete(Resource.Success(sampleState(status = LibraryStatus.READING, currentPage = 42)))
+        runCurrent()
+        assertIs<LibraryActionState.Succeeded>(viewModel.uiState.value.action)
+        assertFalse(viewModel.uiState.value.drafts.containsKey("state-1"))
+    }
+
+    @Test
+    fun `finished books prohibit progress edits and status-only save omits progress`() = runTest {
+        val repository = FakeRepository()
+        val feed = FakeFeed().apply {
+            respond = {
+                flowOf(LibraryLoad.Fresh(libraryPage(1, 1,
+                    sampleState(status = LibraryStatus.READ, currentPage = 100))))
+            }
+        }
+        val viewModel = vm(feed, repository)
+        viewModel.refresh()
+        runCurrent()
+
+        viewModel.updateProgress("book-1", percentage = 50)
+        assertIs<LibraryActionState.Failed>(viewModel.uiState.value.action)
+        assertTrue(repository.saveCalls.isEmpty())
+
+        viewModel.selectDraftStatus("state-1", LibraryStatus.READ)
+        viewModel.editDraftPercentage("state-1", "70")
+        assertFalse(viewModel.uiState.value.drafts.getValue("state-1").canEditProgress)
+        assertEquals("", viewModel.uiState.value.drafts.getValue("state-1").percentageText)
+
+        viewModel.selectDraftStatus("state-1", LibraryStatus.TO_READ)
+        viewModel.saveDraft("state-1")
+        runCurrent()
+        assertEquals(
+            LibraryStateInput(bookId = "book-1", status = LibraryStatus.TO_READ),
+            repository.saveCalls.single(),
+        )
+    }
+
+    @Test
+    fun `invalid progress draft never sends a request`() = runTest {
+        val repository = FakeRepository()
+        val feed = FakeFeed().apply {
+            respond = {
+                flowOf(LibraryLoad.Fresh(libraryPage(1, 1,
+                    sampleState(status = LibraryStatus.READING))))
+            }
+        }
+        val viewModel = vm(feed, repository)
+        viewModel.refresh()
+        runCurrent()
+
+        viewModel.editDraftPercentage("state-1", "101")
+        viewModel.saveDraft("state-1")
+        assertTrue(repository.saveCalls.isEmpty())
+        assertIs<LibraryActionState.Failed>(viewModel.uiState.value.action)
+    }
+
     private fun vm(
         feed: FakeFeed,
         repository: FakeRepository = FakeRepository(),
