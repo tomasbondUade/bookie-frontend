@@ -71,7 +71,7 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
             MainAppContent(featureViewModels)
         } else {
             val authState by authViewModel.uiState.collectAsStateWithLifecycle()
-            val preferencesViewModel = featureViewModels.readingPreferences
+            val preferencesViewModel = featureViewModels?.readingPreferences
             val preferencesState = preferencesViewModel?.uiState?.collectAsStateWithLifecycle()
 
             LaunchedEffect(authViewModel, authState, preferencesViewModel) {
@@ -90,13 +90,14 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
             ) {
                 ReadingPreferencesScreen(
                     viewModel = preferencesViewModel,
-                    onSignIn = featureViewModels.onSignIn,
+                    onSignIn = featureViewModels?.onSignIn,
                 )
             } else {
-                key((authState as AuthUiState.SignedIn).userId) {
+                val account = authState as AuthUiState.SignedIn
+                key(account.userId) {
                     MainAppContent(
                         featureViewModels = featureViewModels,
-                        currentUserId = authState.userId,
+                        currentUserId = account.userId,
                         accountViewModel = authViewModel,
                         configuredMoodSearch = configuredSearch,
                         configuredLibraryViewModel = configuredLibrary,
