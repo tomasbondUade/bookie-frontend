@@ -14,11 +14,13 @@ import org.bookie.app.data.repository.CommunityRepositoryImpl
 import org.bookie.app.domain.repository.AuthRepository
 import org.bookie.app.domain.usecase.CreateCommunity
 import org.bookie.app.domain.usecase.CreateCommunityComment
+import org.bookie.app.domain.usecase.CreateCommunityPost
 import org.bookie.app.domain.usecase.GetCommunities
 import org.bookie.app.domain.usecase.GetCommunityComments
 import org.bookie.app.domain.usecase.GetCommunityPosts
 import org.bookie.app.domain.usecase.GetRecommendedCommunities
 import org.bookie.app.presentation.community.CommunityViewModel
+import org.bookie.app.presentation.community.CommunityPostsViewModel
 import io.ktor.client.HttpClient
 
 @Composable
@@ -41,6 +43,20 @@ internal fun rememberConfiguredCommunityViewModel(): CommunityViewModel? {
  */
 fun createAuthenticatedCommunityViewModel(bundle: AuthClientBundle): CommunityViewModel =
     makeCommunityViewModel(bundle.bookieClient, bundle.repository, bundle.repository)
+
+fun createAuthenticatedCommunityPostsViewModel(
+    bundle: AuthClientBundle,
+    communityId: String,
+): CommunityPostsViewModel {
+    val repository = CommunityPostsRepositoryImpl(
+        KtorCommunityPostsRemoteDataSource(bundle.bookieClient), bundle.repository,
+    )
+    return CommunityPostsViewModel(
+        communityId = communityId,
+        getPosts = GetCommunityPosts(repository),
+        createPost = CreateCommunityPost(repository),
+    )
+}
 
 private fun makeCommunityViewModel(
     client: HttpClient,

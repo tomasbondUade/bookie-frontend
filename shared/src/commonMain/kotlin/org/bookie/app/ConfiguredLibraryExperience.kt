@@ -15,7 +15,7 @@ internal class ConfiguredLibraryExperience(
     private val authClients: AuthClientBundle,
     private val cache: LibraryCache,
 ) {
-    val authViewModel: AuthViewModel = createAuthViewModel(authClients)
+    val authViewModel: AuthViewModel = createAuthViewModel(authClients, cache)
 
     fun libraryViewModel(): LibraryExperienceViewModel =
         createAuthenticatedLibraryExperienceViewModel(authClients, cache)

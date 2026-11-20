@@ -17,10 +17,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.bookie.app.domain.model.Community
@@ -33,8 +38,10 @@ import org.bookie.app.presentation.components.BookieLoadingState
 fun CommunityScreen(
     viewModel: CommunityViewModel,
     compatibilityViewModel: ReadingCompatibilityViewModel? = null,
+    postsViewModelFactory: ((String) -> CommunityPostsViewModel)? = null,
     currentUserId: String? = null,
     onSignIn: (() -> Unit)? = null,
+    onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val catalog by viewModel.catalog.collectAsStateWithLifecycle()
@@ -43,6 +50,19 @@ fun CommunityScreen(
     val posts by viewModel.posts.collectAsStateWithLifecycle()
     val commentThreads by viewModel.commentThreads.collectAsStateWithLifecycle()
     val create by viewModel.create.collectAsStateWithLifecycle()
+    var query by rememberSaveable { mutableStateOf("") }
+    var composePost by rememberSaveable { mutableStateOf(false) }
+    val postsViewModel = selected?.id?.let { communityId ->
+        remember(communityId, postsViewModelFactory) { postsViewModelFactory?.invoke(communityId) }
+    }
+    val postDraft = postsViewModel?.uiState?.collectAsStateWithLifecycle()?.value
+
+    LaunchedEffect(postDraft?.publishSuccess) {
+        if (postDraft?.publishSuccess == true) {
+            composePost = false
+            viewModel.refreshPosts()
+        }
+    }
 
     LaunchedEffect(viewModel) { viewModel.loadCommunities() }
 
@@ -94,6 +114,12 @@ fun CommunityScreen(
             if (selected!!.tags.isNotEmpty()) {
                 Text(selected!!.tags.joinToString(" · "), style = MaterialTheme.typography.labelMedium)
             }
+            if (postsViewModel != null) Button(
+                onClick = {
+                    if (currentUserId == null) onSignIn?.invoke() else composePost = true
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Crear publicación") }
             Text("Publicaciones", style = MaterialTheme.typography.titleLarge)
             when (val current = posts) {
                 CommunityPostsState.Idle, CommunityPostsState.Loading ->
@@ -151,7 +177,17 @@ fun CommunityScreen(
                 }
             }
         } else {
-            Text("Comunidades", style = MaterialTheme.typography.headlineSmall)
+            onBack?.let { TextButton(onClick = it) { Text("Volver a Inicio") } }
+            Text("COMUNIDADES", style = MaterialTheme.typography.titleLarge,
+                textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                label = { Text("Buscar comunidad") },
+                placeholder = { Text("Fantasía, misterio...") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
             Button(
                 onClick = viewModel::openCreate,
                 modifier = Modifier.fillMaxWidth(),
@@ -182,7 +218,7 @@ fun CommunityScreen(
                 }
             }
 
-            Text("Explorá comunidades", style = MaterialTheme.typography.titleLarge)
+            Text("Descubrir", style = MaterialTheme.typography.titleMedium)
             when (val current = catalog) {
                 CommunityCatalogState.Idle, CommunityCatalogState.Loading ->
                     BookieLoadingState(message = "Cargando comunidades...")
@@ -194,7 +230,10 @@ fun CommunityScreen(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    items(current.communities, key = Community::id) { community ->
+                    items(current.communities.filter { community ->
+                        query.isBlank() || community.name.contains(query.trim(), ignoreCase = true) ||
+                            community.tags.any { it.contains(query.trim(), ignoreCase = true) }
+                    }, key = Community::id) { community ->
                         CommunityCard(community) { viewModel.selectCommunity(community) }
                     }
                     item {
@@ -214,6 +253,44 @@ fun CommunityScreen(
                 }
             }
         }
+    }
+
+    if (composePost && postsViewModel != null && postDraft != null) {
+        AlertDialog(
+            onDismissRequest = { if (!postDraft.publishing) composePost = false },
+            title = { Text("Crear publicación") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = postDraft.title,
+                        onValueChange = postsViewModel::onTitleChanged,
+                        label = { Text("Título") },
+                        enabled = !postDraft.publishing,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = postDraft.content,
+                        onValueChange = postsViewModel::onContentChanged,
+                        label = { Text("Contenido") },
+                        minLines = 3,
+                        enabled = !postDraft.publishing,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    postDraft.publishError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = postsViewModel::publish,
+                    enabled = !postDraft.publishing,
+                ) { Text(if (postDraft.publishing) "Publicando" else "Publicar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { composePost = false }, enabled = !postDraft.publishing) {
+                    Text("Cancelar")
+                }
+            },
+        )
     }
 }
 

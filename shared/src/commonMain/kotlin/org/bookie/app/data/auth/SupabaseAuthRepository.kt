@@ -1,6 +1,7 @@
 package org.bookie.app.data.auth
 
 import io.ktor.client.plugins.ResponseException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
@@ -104,8 +105,10 @@ class SupabaseAuthRepository(
         // A network outage must not prevent local sign-out.
         try {
             if (!token.isNullOrBlank()) remote.signOut(token)
-        } catch (error: Exception) {
-            error.toApiError() // rethrows coroutine cancellation
+        } catch (cancel: CancellationException) {
+            throw cancel
+        } catch (_: Exception) {
+            // Local credentials must still be removed when the server is offline.
         }
         try {
             store.clear()

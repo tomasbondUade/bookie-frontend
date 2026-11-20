@@ -12,6 +12,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -19,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.bookie.app.domain.model.*
@@ -35,7 +37,10 @@ fun SeriesReadingScreen(
     LaunchedEffect(viewModel) { viewModel.loadActive() }
 
     Column(modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Sagas y órdenes de lectura", style = MaterialTheme.typography.headlineSmall)
+        Text(if (state.selectedSeriesId == null) "SAGAS Y SERIES" else "MAPA DE LECTURA",
+            style = MaterialTheme.typography.titleLarge,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth())
         if (state.selectedSeriesId == null) {
             Text("Mis sagas activas", style = MaterialTheme.typography.titleMedium)
             when (val active = state.active) {
@@ -73,6 +78,10 @@ fun SeriesReadingScreen(
                     Text(progress.value.title, style = MaterialTheme.typography.titleLarge)
                     Text("${progress.value.readBooks} / ${progress.value.totalBooks} libros principales")
                     Text("Progreso de saga: ${progress.value.completionPercentage}%")
+                    LinearProgressIndicator(
+                        progress = { progress.value.completionPercentage.coerceIn(0.0, 100.0).toFloat() / 100f },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                     if (progress.value.nodes.isEmpty()) Text("La saga todavía no tiene libros configurados.")
                 }
             }

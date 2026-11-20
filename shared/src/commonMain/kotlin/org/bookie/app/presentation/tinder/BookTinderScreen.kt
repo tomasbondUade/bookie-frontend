@@ -1,11 +1,14 @@
 package org.bookie.app.presentation.tinder
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -17,6 +20,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -24,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.bookie.app.domain.model.RecommendationSource
@@ -31,6 +36,7 @@ import org.bookie.app.domain.model.SwipeType
 import org.bookie.app.presentation.components.BookieEmptyState
 import org.bookie.app.presentation.components.BookieErrorState
 import org.bookie.app.presentation.components.BookieLoadingState
+import org.bookie.app.presentation.components.BookCover
 
 @Composable
 fun BookTinderScreen(
@@ -48,7 +54,8 @@ fun BookTinderScreen(
         onBack?.let { goBack ->
             TextButton(onClick = goBack) { Text("Volver") }
         }
-        Text("Tinder de libros", style = MaterialTheme.typography.headlineSmall)
+        Text("PARA VOS", style = MaterialTheme.typography.titleLarge,
+            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
 
         when (val current = state) {
             BookTinderUiState.Loading -> BookieLoadingState(
@@ -105,22 +112,27 @@ fun BookTinderScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Card(
+                androidx.compose.material3.Surface(
                     modifier = Modifier.fillMaxWidth().weight(1f),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    ),
+                    color = MaterialTheme.colorScheme.background,
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
-                            .padding(20.dp),
+                            .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().height(220.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            BookCover(recommendation.book, Modifier.size(width = 140.dp, height = 205.dp))
+                        }
                         Text(
                             text = recommendation.book.title,
                             style = MaterialTheme.typography.headlineSmall,
+                            textAlign = TextAlign.Center,
                         )
                         Text(
                             text = recommendation.book.authors.joinToString().ifBlank {
@@ -128,6 +140,7 @@ fun BookTinderScreen(
                             },
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
                         )
                         recommendation.book.genres.takeIf { it.isNotEmpty() }?.let { genres ->
                             Text(genres.joinToString(" · "), style = MaterialTheme.typography.labelMedium)
@@ -152,31 +165,25 @@ fun BookTinderScreen(
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    IconButton(
+                    OutlinedButton(
                         onClick = { viewModel.swipe(SwipeType.DISLIKE) },
                         enabled = !current.submitting,
+                        modifier = Modifier.weight(1f),
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.ThumbDown,
-                            contentDescription = "No me interesa",
-                            tint = MaterialTheme.colorScheme.error,
-                        )
+                        Text("No me interesa")
                     }
                     if (current.submitting) {
-                        CircularProgressIndicator(modifier = Modifier.padding(horizontal = 24.dp))
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
                     }
-                    IconButton(
+                    Button(
                         onClick = { viewModel.swipe(SwipeType.LIKE) },
                         enabled = !current.submitting,
+                        modifier = Modifier.weight(1f),
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Favorite,
-                            contentDescription = "Me interesa",
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
+                        Text("Me gusta")
                     }
                 }
             }

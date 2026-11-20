@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.bookie.app.domain.model.ReadingStats
@@ -26,6 +27,9 @@ fun ReadingStatsScreen(
     modifier: Modifier = Modifier,
     onSessionExpired: (() -> Unit)? = null,
     onEditPreferences: (() -> Unit)? = null,
+    onSignOut: (() -> Unit)? = null,
+    onOpenLibrary: (() -> Unit)? = null,
+    email: String? = null,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -40,9 +44,19 @@ fun ReadingStatsScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text("Estadísticas de lectura", style = MaterialTheme.typography.headlineSmall)
+        Text("PERFIL", style = MaterialTheme.typography.titleLarge,
+            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        Text(email ?: "Tu perfil lector", style = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         onEditPreferences?.let { onEdit ->
-            Button(onClick = onEdit) { Text("Preferencias de lectura") }
+            Button(onClick = onEdit, modifier = Modifier.fillMaxWidth()) { Text("Editar preferencias") }
+        }
+        onOpenLibrary?.let { action ->
+            Button(onClick = action, modifier = Modifier.fillMaxWidth()) { Text("Ver mi biblioteca") }
+        }
+        Text("Mi actividad lectora", style = MaterialTheme.typography.titleMedium)
+        onSignOut?.let { signOut ->
+            androidx.compose.material3.TextButton(onClick = signOut) { Text("Cerrar sesión") }
         }
 
         when (val currentState = state) {

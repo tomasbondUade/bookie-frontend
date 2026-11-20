@@ -5,7 +5,7 @@ enum class AppDestination(
     val label: String,
 ) {
     HOME("home", "Inicio"),
-    SEARCH("search", "Búsqueda"),
+    SEARCH("search", "Descubrir"),
     LIBRARY("library", "Biblioteca"),
     COMMUNITY("community", "Comunidad"),
     PROFILE("profile", "Perfil");
