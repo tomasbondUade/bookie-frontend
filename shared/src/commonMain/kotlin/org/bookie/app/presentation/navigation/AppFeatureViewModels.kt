@@ -10,6 +10,7 @@ import org.bookie.app.presentation.search.BookReviewsViewModel
 import org.bookie.app.presentation.search.MoodSearchViewModel
 import org.bookie.app.presentation.series.SeriesExplorerViewModel
 import org.bookie.app.presentation.series.SeriesReadingViewModel
+import org.bookie.app.presentation.tinder.BookTinderViewModel
 
 /** ViewModels are supplied by the platform composition root using its authenticated API client. */
 data class AppFeatureViewModels(
@@ -25,4 +26,5 @@ data class AppFeatureViewModels(
     val readingPreferences: ReadingPreferencesViewModel? = null,
     val libraryExperience: LibraryExperienceViewModel? = null,
     val bookLists: BookListsViewModel? = null,
+    val bookTinder: BookTinderViewModel? = null,
 )
