@@ -8,6 +8,7 @@ import org.bookie.app.presentation.library.LibraryExperienceViewModel
 import org.bookie.app.presentation.search.MoodSearchViewModel
 import org.bookie.app.presentation.preferences.ReadingPreferencesViewModel
 import org.bookie.app.presentation.profile.ReadingStatsViewModel
+import org.bookie.app.presentation.community.CommunityViewModel
 import org.bookie.app.data.remote.KtorReadingStatsRemoteDataSource
 import org.bookie.app.data.repository.ReadingStatsRepositoryImpl
 import org.bookie.app.domain.usecase.GetReadingStats
@@ -32,6 +33,7 @@ internal class ConfiguredAccountExperience(
             accountId = accountId,
             moodSearch = createAuthenticatedMoodSearchViewModel(clients),
             library = createAuthenticatedLibraryExperienceViewModel(clients, cache),
+            community = createAuthenticatedCommunityViewModel(clients),
             preferences = createAuthenticatedReadingPreferencesViewModel(clients),
             stats = ReadingStatsViewModel(
                 GetReadingStats(ReadingStatsRepositoryImpl(
@@ -49,6 +51,7 @@ internal data class AccountFeatures(
     val accountId: String,
     val moodSearch: MoodSearchViewModel,
     val library: LibraryExperienceViewModel,
+    val community: CommunityViewModel,
     val preferences: ReadingPreferencesViewModel,
     val stats: ReadingStatsViewModel,
 )

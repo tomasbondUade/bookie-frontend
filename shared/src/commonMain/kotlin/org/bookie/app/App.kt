@@ -111,6 +111,7 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
                         accountViewModel = authViewModel,
                         configuredMoodSearch = sessionFeatures?.moodSearch,
                         configuredLibraryViewModel = sessionFeatures?.library,
+                        configuredCommunityViewModel = sessionFeatures?.community,
                         configuredReadingPreferencesViewModel = sessionFeatures?.preferences,
                         configuredReadingStatsViewModel = sessionFeatures?.stats,
                     )
@@ -127,6 +128,7 @@ private fun MainAppContent(
     accountViewModel: org.bookie.app.presentation.auth.AuthViewModel? = null,
     configuredMoodSearch: MoodSearchViewModel? = null,
     configuredLibraryViewModel: org.bookie.app.presentation.library.LibraryExperienceViewModel? = null,
+    configuredCommunityViewModel: org.bookie.app.presentation.community.CommunityViewModel? = null,
     configuredReadingPreferencesViewModel: org.bookie.app.presentation.preferences.ReadingPreferencesViewModel? = null,
     configuredReadingStatsViewModel: org.bookie.app.presentation.profile.ReadingStatsViewModel? = null,
 ) {
@@ -146,10 +148,10 @@ private fun MainAppContent(
             rememberConfiguredBookReviewsViewModel()
         } else null
     val bookReviewsViewModel = featureViewModels?.bookReviews ?: fallbackBookReviews
-    val fallbackCommunity = if (featureViewModels?.community == null) {
+    val fallbackCommunity = if (featureViewModels?.community == null && configuredCommunityViewModel == null) {
             rememberConfiguredCommunityViewModel()
         } else null
-    val communityViewModel = featureViewModels?.community ?: fallbackCommunity
+    val communityViewModel = featureViewModels?.community ?: configuredCommunityViewModel ?: fallbackCommunity
     val selectedDestination =
             AppDestination.fromRoute(selectedRoute) ?: AppDestination.HOME
     val surface = AppSurface.entries.firstOrNull {
