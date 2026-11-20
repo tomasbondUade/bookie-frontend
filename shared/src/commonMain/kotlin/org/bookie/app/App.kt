@@ -33,6 +33,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.bookie.app.presentation.auth.AuthScreen
 import org.bookie.app.presentation.auth.AuthUiState
 import org.bookie.app.presentation.community.CommunityScreen
+import org.bookie.app.presentation.library.LibraryScreen
+import org.bookie.app.presentation.library.LibraryNotConnectedScreen
 import org.bookie.app.presentation.components.BookieComponentsScreen
 import org.bookie.app.presentation.navigation.AppDestination
 import org.bookie.app.presentation.navigation.AppFeatureViewModels
@@ -180,6 +182,25 @@ private fun MainAppContent(featureViewModels: AppFeatureViewModels?) {
                             Text("Explorar por estado de ánimo", style = MaterialTheme.typography.headlineSmall)
                             Text("Falta configurar la URL del backend Bookie (bookie_api_base_url).")
                         }
+                    }
+                }
+
+                selectedDestination == AppDestination.LIBRARY -> {
+                    val libraryViewModel = featureViewModels?.library
+                    if (libraryViewModel != null) {
+                        LibraryScreen(
+                            viewModel = libraryViewModel,
+                            onExploreBooks = {
+                                selectedRoute = AppDestination.SEARCH.route
+                                selectedSurface = AppSurface.MAIN.name
+                            },
+                            modifier = contentModifier,
+                        )
+                    } else {
+                        LibraryNotConnectedScreen(
+                            onSignIn = featureViewModels?.onSignIn,
+                            modifier = contentModifier,
+                        )
                     }
                 }
 
