@@ -52,7 +52,7 @@ class CommunityPostsRepositoryImpl(
     } catch (error: Exception) {
         val apiError = error.toApiError()
         Resource.Error(
-            apiError.toMessage(),
+            error.toBookieErrorMessage(),
             apiError.toResourceKind(),
         )
     }

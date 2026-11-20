@@ -3,6 +3,7 @@ package org.bookie.app.data.repository
 import org.bookie.app.data.mapper.toDomain
 import org.bookie.app.data.mapper.toDto
 import org.bookie.app.data.remote.ReadingPreferencesRemoteDataSource
+import org.bookie.app.data.remote.toBookieErrorMessage
 import org.bookie.app.data.remote.toApiError
 import org.bookie.app.data.remote.toMessage
 import org.bookie.app.domain.model.ReadingPreferences
@@ -26,6 +27,6 @@ class ReadingPreferencesRepositoryImpl(
     private suspend fun <T> safely(block: suspend () -> T): Resource<T> = try {
         Resource.Success(block())
     } catch (exception: Exception) {
-        Resource.Error(exception.toApiError().toMessage())
+        Resource.Error(exception.toBookieErrorMessage())
     }
 }

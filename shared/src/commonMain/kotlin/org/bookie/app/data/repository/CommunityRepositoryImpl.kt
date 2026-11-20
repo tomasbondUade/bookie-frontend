@@ -4,6 +4,7 @@ import org.bookie.app.data.remote.ApiError
 import org.bookie.app.data.remote.CommunityRemoteDataSource
 import org.bookie.app.data.remote.dto.CommunityDto
 import org.bookie.app.data.remote.dto.CreateCommunityDto
+import org.bookie.app.data.remote.toBookieErrorMessage
 import org.bookie.app.data.remote.toApiError
 import org.bookie.app.data.remote.toMessage
 import org.bookie.app.domain.model.Community
@@ -48,7 +49,7 @@ class CommunityRepositoryImpl(private val remote: CommunityRemoteDataSource) :
         } catch (error: Exception) {
             val apiError = error.toApiError()
             Resource.Error(
-                message = apiError.toMessage(),
+                message = error.toBookieErrorMessage(),
                 kind = when (apiError) {
                     is ApiError.Http -> when (apiError.statusCode) {
                         400 -> ResourceErrorKind.VALIDATION

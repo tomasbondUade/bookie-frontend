@@ -10,6 +10,7 @@ import org.bookie.app.data.mapper.toDomain
 import org.bookie.app.data.mapper.toDto
 import org.bookie.app.data.remote.LibraryRemoteDataSource
 import org.bookie.app.data.remote.dto.LibraryStatusDto
+import org.bookie.app.data.remote.toBookieErrorMessage
 import org.bookie.app.data.remote.toApiError
 import org.bookie.app.data.remote.toMessage
 import org.bookie.app.domain.model.LibraryBookState
@@ -102,7 +103,7 @@ class OnlineFirstLibraryRepository(
             throw cancel
         } catch (exception: Exception) {
             if (accounts.currentAccountId() == account) {
-                emit(LibraryLoad.Failed(exception.toApiError().toMessage(), cached))
+                emit(LibraryLoad.Failed(exception.toBookieErrorMessage(), cached))
             }
         }
     }
@@ -157,7 +158,7 @@ class OnlineFirstLibraryRepository(
         } catch (cancel: CancellationException) {
             throw cancel
         } catch (exception: Exception) {
-            Resource.Error(exception.toApiError().toMessage())
+            Resource.Error(exception.toBookieErrorMessage())
         }
 
     override suspend fun clearAccountCache(accountId: String) {
@@ -189,7 +190,7 @@ class OnlineFirstLibraryRepository(
         } catch (cancel: CancellationException) {
             throw cancel
         } catch (exception: Exception) {
-            Resource.Error(exception.toApiError().toMessage())
+            Resource.Error(exception.toBookieErrorMessage())
         }
     }
 
