@@ -15,4 +15,5 @@ data class BookDto(
     val infoLink: String? = null,
     val buyLink: String? = null,
     val relevance: Double? = null, // /books/mood; absent in ordinary search
+    val reasons: List<String> = emptyList(), // /books/tinder and /books/recommendations
 )

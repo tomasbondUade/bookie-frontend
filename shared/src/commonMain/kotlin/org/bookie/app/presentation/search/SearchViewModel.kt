@@ -3,6 +3,7 @@ package org.bookie.app.presentation.search
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -20,8 +21,11 @@ class SearchViewModel(
     val uiState = _uiState.asStateFlow()
 
     private var latestRequestId = 0L
+    private var searchJob: Job? = null
 
     fun onQueryChanged(query: String) {
+        if (_query.value == query) return
+        searchJob?.cancel()
         _query.value = query
         latestRequestId++
         _uiState.value = SearchUiState.Idle
@@ -40,7 +44,7 @@ class SearchViewModel(
         val requestId = ++latestRequestId
         _uiState.value = SearchUiState.Loading
 
-        viewModelScope.launch {
+        searchJob = viewModelScope.launch {
             val resultState = try {
                 when (val result = searchBooks(normalizedQuery)) {
                     is Resource.Success -> {

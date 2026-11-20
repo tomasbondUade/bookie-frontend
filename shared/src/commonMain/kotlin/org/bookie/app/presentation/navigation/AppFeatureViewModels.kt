@@ -3,12 +3,16 @@ package org.bookie.app.presentation.navigation
 import org.bookie.app.presentation.auth.AuthViewModel
 import org.bookie.app.presentation.community.CommunityViewModel
 import org.bookie.app.presentation.library.LibraryExperienceViewModel
+import org.bookie.app.presentation.lists.BookListsViewModel
 import org.bookie.app.presentation.profile.ReadingStatsViewModel
 import org.bookie.app.presentation.preferences.ReadingPreferencesViewModel
 import org.bookie.app.presentation.search.BookReviewsViewModel
 import org.bookie.app.presentation.search.MoodSearchViewModel
 import org.bookie.app.presentation.series.SeriesExplorerViewModel
 import org.bookie.app.presentation.series.SeriesReadingViewModel
+import org.bookie.app.presentation.tinder.BookTinderViewModel
+import org.bookie.app.presentation.community.ReadingCompatibilityViewModel
+import org.bookie.app.presentation.challenges.ReadingChallengesViewModel
 
 /** ViewModels are supplied by the platform composition root using its authenticated API client. */
 data class AppFeatureViewModels(
@@ -22,5 +26,9 @@ data class AppFeatureViewModels(
     val community: CommunityViewModel? = null,
     val auth: AuthViewModel? = null,
     val readingPreferences: ReadingPreferencesViewModel? = null,
-    val library: LibraryExperienceViewModel? = null,
+    val libraryExperience: LibraryExperienceViewModel? = null,
+    val bookLists: BookListsViewModel? = null,
+    val bookTinder: BookTinderViewModel? = null,
+    val readingCompatibility: ReadingCompatibilityViewModel? = null,
+    val readingChallenges: ReadingChallengesViewModel? = null,
 )

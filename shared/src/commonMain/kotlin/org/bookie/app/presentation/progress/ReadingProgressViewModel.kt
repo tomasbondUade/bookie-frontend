@@ -127,7 +127,7 @@ class ReadingProgressViewModel(
 
     fun recordSession() {
         val current = content() ?: return
-        if (current.isBusy) return
+        if (current.isBusy || current.historyLoading) return
         val parsed = validate(current)
         if (showValidationErrors(current, parsed)) return
         val input = ReadingSessionInput(
@@ -182,7 +182,7 @@ class ReadingProgressViewModel(
 
     fun loadSessions() {
         val current = content() ?: return
-        if (current.historyLoading) return
+        if (current.historyLoading || current.isBusy) return
         _uiState.value = current.copy(historyLoading = true, historyError = null)
         viewModelScope.launch {
             val result = try {

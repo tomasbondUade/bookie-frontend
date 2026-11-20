@@ -19,15 +19,27 @@ class AuthViewModel(repository: AuthRepository) : ViewModel() {
     private val mutableUiState = MutableStateFlow<AuthUiState>(AuthUiState.Restoring)
     val uiState = mutableUiState.asStateFlow()
 
+    private var restoring = false
+
     fun restore() {
-        if (mutableUiState.value is AuthUiState.Submitting) return
+        if (restoring || mutableUiState.value is AuthUiState.Submitting) return
+        restoring = true
         mutableUiState.value = AuthUiState.Restoring
         viewModelScope.launch {
-            mutableUiState.value = restoreSession().toUiState()
+            try {
+                mutableUiState.value = restoreSession().toUiState()
+            } catch (cancel: CancellationException) {
+                throw cancel
+            } catch (error: Exception) {
+                mutableUiState.value = AuthUiState.Form(error = "No se pudo restaurar la sesión.")
+            } finally {
+                restoring = false
+            }
         }
     }
 
     fun chooseMode(mode: AuthMode) {
+        if (restoring || mutableUiState.value is AuthUiState.Submitting || mutableUiState.value is AuthUiState.SignedIn) return
         val current = mutableUiState.value as? AuthUiState.Form ?: AuthUiState.Form()
         mutableUiState.value = current.copy(mode = mode, error = null)
     }
@@ -95,6 +107,8 @@ class AuthViewModel(repository: AuthRepository) : ViewModel() {
 
     private fun isValidEmail(value: String): Boolean {
         val email = value.trim()
-        return email.contains('@') && email.substringAfter('@').contains('.') && !email.contains(' ')
+        return email.count { it == '@' } == 1 && email.substringBefore('@').isNotEmpty() &&
+            email.substringAfter('@').split('.').let { parts -> parts.size >= 2 && parts.all { it.isNotEmpty() } } &&
+            email.none { it.isWhitespace() }
     }
 }

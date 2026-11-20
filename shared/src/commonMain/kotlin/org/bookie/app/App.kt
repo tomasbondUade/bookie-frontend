@@ -33,10 +33,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.bookie.app.presentation.auth.AuthScreen
 import org.bookie.app.presentation.auth.AuthUiState
+import org.bookie.app.presentation.challenges.ReadingChallengesScreen
 import org.bookie.app.presentation.community.CommunityScreen
 import org.bookie.app.presentation.library.LibraryScreen
 import org.bookie.app.presentation.library.LibraryNotConnectedScreen
 import org.bookie.app.presentation.components.BookieComponentsScreen
+import org.bookie.app.presentation.lists.BookListsScreen
+import org.bookie.app.presentation.lists.LibraryWorkspaceScreen
 import org.bookie.app.presentation.navigation.AppDestination
 import org.bookie.app.presentation.navigation.AppFeatureViewModels
 import org.bookie.app.presentation.profile.ReadingStatsScreen
@@ -45,6 +48,7 @@ import org.bookie.app.presentation.preferences.ReadingPreferencesUiState
 import org.bookie.app.presentation.search.MoodSearchScreen
 import org.bookie.app.presentation.series.SeriesExplorerScreen
 import org.bookie.app.presentation.series.SeriesReadingScreen
+import org.bookie.app.presentation.tinder.BookTinderScreen
 import org.bookie.app.theme.BookieTheme
 
 @Composable
@@ -78,14 +82,20 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
                     onSignIn = featureViewModels.onSignIn,
                 )
             } else {
-                MainAppContent(featureViewModels)
+                MainAppContent(
+                    featureViewModels = featureViewModels,
+                    currentUserId = (authState as? AuthUiState.SignedIn)?.userId,
+                )
             }
         }
     }
 }
 
 @Composable
-private fun MainAppContent(featureViewModels: AppFeatureViewModels?) {
+private fun MainAppContent(
+    featureViewModels: AppFeatureViewModels?,
+    currentUserId: String? = null,
+) {
     var selectedRoute by rememberSaveable {
             mutableStateOf(AppDestination.HOME.route)
         }
@@ -158,6 +168,25 @@ private fun MainAppContent(featureViewModels: AppFeatureViewModels?) {
                     )
                 }
 
+                surface == AppSurface.BOOK_TINDER && featureViewModels?.bookTinder != null -> {
+                    BookTinderScreen(
+                        viewModel = featureViewModels.bookTinder,
+                        onSignIn = featureViewModels.onSignIn,
+                        onBack = { selectedSurface = AppSurface.MAIN.name },
+                        modifier = contentModifier,
+                    )
+                }
+
+                surface == AppSurface.READING_CHALLENGES &&
+                        featureViewModels?.readingChallenges != null -> {
+                    ReadingChallengesScreen(
+                        viewModel = featureViewModels.readingChallenges,
+                        onSignIn = featureViewModels.onSignIn,
+                        onBack = { selectedSurface = AppSurface.MAIN.name },
+                        modifier = contentModifier,
+                    )
+                }
+
                 surface == AppSurface.SERIES_DISCOVERY &&
                         featureViewModels != null -> {
                     SeriesExplorerScreen(
@@ -200,8 +229,20 @@ private fun MainAppContent(featureViewModels: AppFeatureViewModels?) {
                 }
 
                 selectedDestination == AppDestination.LIBRARY -> {
-                    val libraryViewModel = featureViewModels?.library
+                    val libraryViewModel = featureViewModels?.libraryExperience
+                    val listsViewModel = featureViewModels?.bookLists
                     when {
+                        libraryViewModel != null && listsViewModel != null -> LibraryWorkspaceScreen(
+                            libraryViewModel = libraryViewModel,
+                            listsViewModel = listsViewModel,
+                            onSignIn = featureViewModels.onSignIn,
+                            modifier = contentModifier,
+                        )
+                        listsViewModel != null -> BookListsScreen(
+                            viewModel = listsViewModel,
+                            onSignIn = featureViewModels.onSignIn,
+                            modifier = contentModifier,
+                        )
                         libraryViewModel != null -> LibraryScreen(
                             viewModel = libraryViewModel,
                             onExploreBooks = {
@@ -244,7 +285,13 @@ private fun MainAppContent(featureViewModels: AppFeatureViewModels?) {
 
                 selectedDestination == AppDestination.COMMUNITY -> {
                     if (communityViewModel != null) {
-                        CommunityScreen(viewModel = communityViewModel, modifier = contentModifier)
+                        CommunityScreen(
+                            viewModel = communityViewModel,
+                            compatibilityViewModel = featureViewModels?.readingCompatibility,
+                            currentUserId = currentUserId,
+                            onSignIn = featureViewModels?.onSignIn,
+                            modifier = contentModifier,
+                        )
                     } else {
                         Column(modifier = contentModifier.padding(24.dp)) {
                             Text("Comunidades", style = MaterialTheme.typography.headlineSmall)
@@ -289,6 +336,12 @@ private fun MainAppContent(featureViewModels: AppFeatureViewModels?) {
                                 selectedSurface = AppSurface.SERIES_DISCOVERY.name
                             }
                         },
+                        onExploreTinder = if (featureViewModels?.bookTinder != null) {
+                            { selectedSurface = AppSurface.BOOK_TINDER.name }
+                        } else null,
+                        onExploreChallenges = if (featureViewModels?.readingChallenges != null) {
+                            { selectedSurface = AppSurface.READING_CHALLENGES.name }
+                        } else null,
                         onShowComponents = {
                             selectedSurface = AppSurface.COMPONENTS_SHOWCASE.name
                         },
@@ -307,6 +360,8 @@ private enum class AppSurface {
     MAIN,
     SERIES_DISCOVERY,
     SERIES_READING,
+    BOOK_TINDER,
+    READING_CHALLENGES,
     PREFERENCES,
     COMPONENTS_SHOWCASE,
 }
@@ -315,6 +370,8 @@ private enum class AppSurface {
 private fun HomePlaceholder(
     modifier: Modifier = Modifier,
     onExploreSeries: () -> Unit,
+    onExploreTinder: (() -> Unit)?,
+    onExploreChallenges: (() -> Unit)?,
     onShowComponents: () -> Unit,
 ) {
     Column(
@@ -344,6 +401,22 @@ private fun HomePlaceholder(
             modifier = Modifier.padding(top = 16.dp),
         ) {
             Text("Explorar sagas")
+        }
+        onExploreTinder?.let { openTinder ->
+            Button(
+                onClick = openTinder,
+                modifier = Modifier.padding(top = 16.dp),
+            ) {
+                Text("Tinder de libros")
+            }
+        }
+        onExploreChallenges?.let { openChallenges ->
+            Button(
+                onClick = openChallenges,
+                modifier = Modifier.padding(top = 16.dp),
+            ) {
+                Text("Retos de lectura")
+            }
         }
         Button(
             onClick = onShowComponents,

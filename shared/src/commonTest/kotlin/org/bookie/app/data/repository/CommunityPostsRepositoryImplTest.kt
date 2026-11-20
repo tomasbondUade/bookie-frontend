@@ -7,6 +7,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.test.runTest
 import org.bookie.app.data.remote.*
+import org.bookie.app.domain.model.CreateCommunityCommentInput
 import org.bookie.app.domain.model.CreateCommunityPostInput
 import org.bookie.app.domain.result.Resource
 import org.bookie.app.domain.result.ResourceErrorKind
@@ -49,6 +50,30 @@ class CommunityPostsRepositoryImplTest {
         client.close()
     }
 
+    @Test fun `reads persisted comments from the public post endpoint`() = runTest {
+        var path = ""
+        var limit = ""
+        val client = createBookieHttpClient(MockEngine { request ->
+            path = request.url.encodedPath
+            limit = request.url.parameters["limit"].orEmpty()
+            respond(
+                """[{"id":"comment-1","content":"Hola","postId":"post-1","authorId":"user-1","parentId":null,"createdAt":"2026-11-20T10:00:00Z"}]""",
+                headers = headers(),
+            )
+        }, BookieHttpClientConfig("https://api.example.test/v1"))
+
+        val result = CommunityPostsRepositoryImpl(
+            KtorCommunityPostsRemoteDataSource(client), AccessTokenProvider { null },
+        ).getComments("post-1", 50)
+
+        val comments = assertIs<Resource.Success<List<org.bookie.app.domain.model.CommunityComment>>>(result).data
+        assertEquals("/v1/posts/post-1/comments", path)
+        assertEquals("50", limit)
+        assertEquals("comment-1", comments.single().id)
+        assertEquals(null, comments.single().parentId)
+        client.close()
+    }
+
     @Test fun `missing session rejects publication before HTTP`() = runTest {
         var calls = 0
         val client = createBookieHttpClient(MockEngine { calls++; respond("{}") },
@@ -68,6 +93,70 @@ class CommunityPostsRepositoryImplTest {
             KtorCommunityPostsRemoteDataSource(client), AccessTokenProvider { "expired" },
         ).createPost("community-1", CreateCommunityPostInput("Título", "Texto"))
         assertEquals(ResourceErrorKind.UNAUTHORIZED, assertIs<Resource.Error>(result).kind)
+        client.close()
+    }
+
+    @Test fun `comment sends JWT and only the accepted fields then maps server response`() = runTest {
+        val requests = mutableListOf<io.ktor.client.request.HttpRequestData>()
+        val client = createBookieHttpClient(MockEngine { request ->
+            requests += request
+            respond(
+                """{"id":"comment-1","content":"Hola","postId":"post-1","authorId":"user-1","parentId":null,"createdAt":"2026-11-20T10:00:00Z"}""",
+                HttpStatusCode.Created,
+                headers(),
+            )
+        }, BookieHttpClientConfig("https://api.example.test/v1", AccessTokenProvider { "jwt" }))
+        val result = CommunityPostsRepositoryImpl(
+            KtorCommunityPostsRemoteDataSource(client), AccessTokenProvider { "jwt" },
+        ).createComment("post-1", CreateCommunityCommentInput(" Hola "))
+
+        val comment = assertIs<Resource.Success<org.bookie.app.domain.model.CommunityComment>>(result).data
+        assertEquals("comment-1", comment.id)
+        assertEquals("post-1", comment.postId)
+        assertEquals(null, comment.parentId)
+        assertEquals("/v1/posts/post-1/comments", requests.single().url.encodedPath)
+        assertEquals("Bearer jwt", requests.single().headers[HttpHeaders.Authorization])
+        assertEquals(
+            """{"content":"Hola"}""",
+            (requests.single().body as io.ktor.http.content.TextContent).text,
+        )
+        client.close()
+    }
+
+    @Test fun `reply includes parent id and reports missing comment as not found`() = runTest {
+        var body = ""
+        val client = createBookieHttpClient(MockEngine { request ->
+            body = (request.body as io.ktor.http.content.TextContent).text
+            respond("", HttpStatusCode.NotFound)
+        }, BookieHttpClientConfig("https://api.example.test/v1", AccessTokenProvider { "jwt" }))
+        val result = CommunityPostsRepositoryImpl(
+            KtorCommunityPostsRemoteDataSource(client), AccessTokenProvider { "jwt" },
+        ).createComment("post-1", CreateCommunityCommentInput("Respuesta", "parent-1"))
+
+        assertEquals("""{"content":"Respuesta","parentId":"parent-1"}""", body)
+        assertEquals(ResourceErrorKind.NOT_FOUND, assertIs<Resource.Error>(result).kind)
+        client.close()
+    }
+
+    @Test fun `guest and invalid comments are rejected before HTTP`() = runTest {
+        var calls = 0
+        val client = createBookieHttpClient(
+            MockEngine { calls++; respond("{}") },
+            BookieHttpClientConfig("https://api.example.test/v1"),
+        )
+        val repository = CommunityPostsRepositoryImpl(
+            KtorCommunityPostsRemoteDataSource(client), AccessTokenProvider { null },
+        )
+
+        val guest = repository.createComment("post-1", CreateCommunityCommentInput("Hola"))
+        assertEquals(ResourceErrorKind.UNAUTHORIZED, assertIs<Resource.Error>(guest).kind)
+
+        val signedIn = CommunityPostsRepositoryImpl(
+            KtorCommunityPostsRemoteDataSource(client), AccessTokenProvider { "jwt" },
+        )
+        val invalid = signedIn.createComment("post-1", CreateCommunityCommentInput("  "))
+        assertEquals(ResourceErrorKind.VALIDATION, assertIs<Resource.Error>(invalid).kind)
+        assertEquals(0, calls)
         client.close()
     }
 }

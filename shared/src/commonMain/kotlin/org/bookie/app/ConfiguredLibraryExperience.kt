@@ -18,7 +18,7 @@ internal class ConfiguredLibraryExperience(
     val authViewModel: AuthViewModel = createAuthViewModel(authClients)
 
     fun libraryViewModel(): LibraryExperienceViewModel =
-        createAuthenticatedLibraryViewModel(authClients, cache)
+        createAuthenticatedLibraryExperienceViewModel(authClients, cache)
 
     /**
      * Search reuses the SAME AuthClientBundle as Library: one Supabase

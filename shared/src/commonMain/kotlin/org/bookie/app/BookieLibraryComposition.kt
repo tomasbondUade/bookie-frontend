@@ -18,7 +18,7 @@ import org.bookie.app.presentation.library.LibraryExperienceViewModel
  * Clear the old user's cache on logout/account switch (#63); this function
  * does not own the AuthClientBundle or its lifecycle.
  */
-fun createAuthenticatedLibraryViewModel(
+fun createAuthenticatedLibraryExperienceViewModel(
     authClients: AuthClientBundle,
     cache: LibraryCache,
 ): LibraryExperienceViewModel {

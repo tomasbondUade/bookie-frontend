@@ -129,6 +129,7 @@ class LibraryExperienceViewModel(
     }
 
     fun retry() {
+        if (mutationJob?.isActive == true) return
         val current = (mutableState.value.content as? LibraryContentState.Ready)?.snapshot
         if (current?.warning != null && lastPageAttempted > 1 && pages.containsKey(1)) {
             requestPage(page = lastPageAttempted, append = true, preserveVisible = true)
@@ -197,6 +198,7 @@ class LibraryExperienceViewModel(
     }
 
     fun cancelRemoval() {
+        if (mutationJob?.isActive == true) return
         mutableState.value = mutableState.value.copy(pendingRemoval = null)
     }
 

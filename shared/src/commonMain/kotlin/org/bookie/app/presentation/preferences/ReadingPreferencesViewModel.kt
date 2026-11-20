@@ -46,7 +46,8 @@ class ReadingPreferencesViewModel(
     }
 
     fun load() {
-        if (mutableUiState.value == ReadingPreferencesUiState.Loading) return
+        if (mutableUiState.value == ReadingPreferencesUiState.Loading ||
+            mutableUiState.value is ReadingPreferencesUiState.Saving) return
         val generation = accountGeneration
         mutableUiState.value = ReadingPreferencesUiState.Loading
         viewModelScope.launch {
@@ -82,6 +83,7 @@ class ReadingPreferencesViewModel(
     fun cancelEdit() {
         val draft = mutableUiState.value.editingOrNull() ?: return
         if (!draft.isOnboarding) {
+            searchRequestId++
             mutableUiState.value = ReadingPreferencesUiState.Viewing(draft.baseline)
         }
     }
@@ -115,6 +117,7 @@ class ReadingPreferencesViewModel(
         val draft = mutableUiState.value.editingOrNull() ?: return
         val query = draft.searchQuery.trim()
         if (query.isEmpty()) {
+            searchRequestId++
             updateDraft { copy(searchState = BookSearchState.Idle) }
             return
         }
