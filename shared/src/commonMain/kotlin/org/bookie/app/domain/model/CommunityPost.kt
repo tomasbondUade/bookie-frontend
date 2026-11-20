@@ -7,3 +7,14 @@ data class CommunityPost(
     val author: PostAuthor? = null,
 )
 data class CreateCommunityPostInput(val title: String, val content: String)
+
+data class CommunityComment(
+    val id: String,
+    val content: String,
+    val postId: String,
+    val authorId: String,
+    val parentId: String?,
+    val createdAt: String,
+)
+
+data class CreateCommunityCommentInput(val content: String, val parentId: String? = null)
