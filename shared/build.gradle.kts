@@ -1,5 +1,19 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
+buildscript {
+    dependencies {
+        constraints {
+            classpath("org.bouncycastle:bcpkix-jdk18on:1.86")
+            classpath("org.bouncycastle:bcprov-jdk18on:1.86")
+            classpath("com.google.guava:guava:33.7.2-jre")
+            classpath("io.opentelemetry:opentelemetry-api:1.67.0")
+            classpath("io.opentelemetry:opentelemetry-context:1.67.0")
+            classpath("org.apache.commons:commons-lang3:3.21.0")
+            classpath("org.apache.httpcomponents:httpclient:4.5.14")
+        }
+    }
+}
+
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidMultiplatformLibrary)
