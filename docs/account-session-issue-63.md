@@ -52,3 +52,31 @@ Con Android conectado por USB, si el backend o Supabase local no responden:
 Los tests automatizados cubren el orden limpieza→logout y la recuperación
 ante fallas de caché; las verificaciones Android aún requieren ejecutarse
 localmente antes de abrir el PR.
+
+## Regression: account switching and sync HTTP 409
+
+- Previously `App()` created account-dependent ViewModels outside the signed-in
+  account key. After sign-out/login, the new UI could show the previous account's
+  in-memory library snapshot before a refresh.
+- Now `ConfiguredAccountExperience.createFeaturesForAccount(accountId)` returns
+  fresh MoodSearch, Library, Preferences and ReadingStats ViewModels created from
+  the already-shared authenticated HTTP client. `App()` remembers those only
+  inside `key(account.userId)`, so old screen state cannot be presented to the
+  next signed-in account. SQLDelight stays account-scoped.
+- When `POST /users/sync` returns HTTP 409, NestJS has rejected either a duplicate
+  username or email belonging to a different Supabase user ID. This is a backend
+  identity integrity conflict; the mobile app must not invent a username or
+  reassign/delete a database user. The session remains active with a useful warning
+  and an explicit retry action in Mi cuenta.
+- A missing NestJS connection also leaves the Supabase session valid and shows a
+  recoverable warning. Retry after the backend is back.
+- Regression test uses a Ktor mock 409 response to assert the warning, pending
+  sync flag, and preservation of the access token.
+
+**Manual checks still required**:
+1. Sign in as account A, load its library, sign out, sign in as account B.
+   There must be NO instant flash of account A's library or profile.
+2. Retry sync with NestJS up. If HTTP 409 persists, inspect the account mapping
+   in backend PostgreSQL; do not silently overwrite another user's record.
+3. Stop NestJS while Supabase remains running; confirm signing in and signing
+   out are still available and the warning is actionable.
