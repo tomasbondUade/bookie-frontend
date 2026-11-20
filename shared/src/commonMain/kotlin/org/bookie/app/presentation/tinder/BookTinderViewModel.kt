@@ -58,7 +58,7 @@ class BookTinderViewModel(
                     mutableUiState.value = if (nextIndex >= current.feed.books.size) {
                         BookTinderUiState.Exhausted(current.feed.source)
                     } else {
-                        current.copy(currentIndex = nextIndex, submitting = false)
+                        current.copy(currentIndex = nextIndex, submitting = false, actionError = null)
                     }
                 }
                 is Resource.Error -> {
