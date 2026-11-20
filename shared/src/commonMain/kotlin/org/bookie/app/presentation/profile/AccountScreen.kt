@@ -43,6 +43,10 @@ fun AccountScreen(
                 }
                 current.syncWarning?.let {
                     Text(it, color = MaterialTheme.colorScheme.error)
+                    Button(
+                        onClick = authViewModel::retrySync,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Reintentar sincronización") }
                 }
                 current.error?.let {
                     Text(it, color = MaterialTheme.colorScheme.error)

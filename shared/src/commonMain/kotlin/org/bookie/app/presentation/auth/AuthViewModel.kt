@@ -80,6 +80,27 @@ class AuthViewModel(
         }
     }
 
+    /** Retry pending Bookie synchronization when the backend returns online. */
+    fun retrySync() {
+        val current = mutableUiState.value as? AuthUiState.SignedIn ?: return
+        if (current.syncWarning == null) return
+        mutableUiState.value = current.copy(
+            syncWarning = "Reintentando sincronización con Bookie…",
+        )
+        viewModelScope.launch {
+            try {
+                val result = restoreSession()
+                mutableUiState.value = result.toUiState()
+            } catch (cancel: CancellationException) {
+                throw cancel
+            } catch (_: Exception) {
+                mutableUiState.value = current.copy(
+                    syncWarning = "No se pudo reintentar la sincronización con Bookie.",
+                )
+            }
+        }
+    }
+
     fun signOut() {
         val signedIn = mutableUiState.value as? AuthUiState.SignedIn ?: return
         mutableUiState.value = AuthUiState.SigningOut

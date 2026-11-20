@@ -1,6 +1,10 @@
 package org.bookie.app.data.auth
 
 import io.ktor.client.plugins.ResponseException
+import io.ktor.client.statement.bodyAsText
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
@@ -182,10 +186,26 @@ class SupabaseAuthRepository(
             mutableState.value = AuthState.SignedIn(value.userId, value.email, username = value.username)
         } catch (error: Exception) {
             val mapped = error.toApiError()
+            val detail = if (mapped is ApiError.Http && mapped.statusCode == 409 &&
+                error is ResponseException
+            ) {
+                val serverMessage = runCatching {
+                    Json.parseToJsonElement(error.response.bodyAsText())
+                        .jsonObject["message"]?.jsonPrimitive?.content
+                }.getOrNull()
+                when (serverMessage) {
+                    "El nombre de usuario ya está en uso." ->
+                        "Ese nombre de usuario ya pertenece a otra cuenta en Bookie."
+                    "El email ya pertenece a otro usuario." ->
+                        "Ese correo ya pertenece a otra cuenta en Bookie."
+                    else ->
+                        "El usuario o correo ya está registrado en otra cuenta de Bookie."
+                }
+            } else mapped.toMessage()
             mutableState.value = AuthState.SignedIn(
                 value.userId,
                 value.email,
-                syncError = "La sesión está activa, pero no se pudo sincronizar con Bookie: ${mapped.toMessage()}",
+                syncError = "La sesión de Supabase está activa, pero no se pudo sincronizar con Bookie: $detail",
                 username = value.username,
             )
         }
