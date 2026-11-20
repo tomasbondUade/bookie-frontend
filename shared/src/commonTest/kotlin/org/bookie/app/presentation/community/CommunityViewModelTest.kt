@@ -25,6 +25,7 @@ import org.bookie.app.domain.result.ResourceErrorKind
 import org.bookie.app.domain.usecase.CreateCommunity
 import org.bookie.app.domain.usecase.CreateCommunityComment
 import org.bookie.app.domain.usecase.GetCommunities
+import org.bookie.app.domain.usecase.GetCommunityComments
 import org.bookie.app.domain.usecase.GetCommunityPosts
 import org.bookie.app.domain.usecase.GetRecommendedCommunities
 import kotlin.test.AfterTest
@@ -168,6 +169,7 @@ class CommunityViewModelTest {
         runCurrent()
 
         vm.toggleCommentComposer("p1")
+        runCurrent()
         vm.onCommentDraftChanged("p1", "Buen libro")
         vm.sendComment("p1")
         assertEquals(emptyList(), vm.commentThreads.value["p1"]?.comments.orEmpty())
@@ -185,6 +187,39 @@ class CommunityViewModelTest {
 
         assertEquals(CreateCommunityCommentInput("Gracias", created.id), repo.lastCommentInput)
         assertEquals(created.id, vm.commentThreads.value.getValue("p1").comments.last().parentId)
+    }
+
+    @Test
+    fun persistedCommentsLoadWhenExpandedAndCanBeRetriedAfterFailure() = runTest {
+        val repo = FakeRepository()
+        val persisted = CommunityComment(
+            id = "persisted-1",
+            content = "Ya estaba publicado",
+            postId = "p1",
+            authorId = "user-2",
+            parentId = null,
+            createdAt = "2026-11-18T12:00:00Z",
+        )
+        repo.commentsResult = Resource.Error("Sin conexión", ResourceErrorKind.NETWORK)
+        val vm = viewModel(repo)
+        vm.loadCommunities()
+        runCurrent()
+        vm.selectCommunity(assertIs<CommunityCatalogState.Ready>(vm.catalog.value).communities.single())
+        runCurrent()
+
+        vm.toggleCommentComposer("p1")
+        runCurrent()
+        assertEquals("Sin conexión", vm.commentThreads.value.getValue("p1").loadError)
+
+        repo.commentsResult = Resource.Success(listOf(persisted))
+        vm.retryComments("p1")
+        runCurrent()
+
+        val state = vm.commentThreads.value.getValue("p1")
+        assertEquals(true, state.loaded)
+        assertEquals(null, state.loadError)
+        assertEquals(listOf(persisted), state.comments)
+        assertEquals(2, repo.commentHistoryCalls)
     }
 
     @Test
@@ -261,6 +296,7 @@ class CommunityViewModelTest {
             createCommunity = CreateCommunity(repo),
             getRecommended = GetRecommendedCommunities(repo),
             getPosts = GetCommunityPosts(repo),
+            getComments = GetCommunityComments(repo),
             createComment = CreateCommunityComment(repo),
             authRepository = auth,
         )
@@ -282,6 +318,8 @@ class CommunityViewModelTest {
         var commentCalls = 0
         var lastCommentInput: CreateCommunityCommentInput? = null
         var commentResult: Resource<CommunityComment>? = null
+        var commentsResult: Resource<List<CommunityComment>>? = null
+        var commentHistoryCalls = 0
 
         override suspend fun listCommunities(page: Int, limit: Int): Resource<CommunityPage> {
             requestedPages += page
@@ -318,6 +356,14 @@ class CommunityViewModelTest {
             communityId: String,
             input: org.bookie.app.domain.model.CreateCommunityPostInput,
         ): Resource<CommunityPost> = Resource.Error("No se usa")
+
+        override suspend fun getComments(
+            postId: String,
+            limit: Int,
+        ): Resource<List<CommunityComment>> {
+            commentHistoryCalls++
+            return commentsResult ?: Resource.Success(emptyList())
+        }
 
         override suspend fun createComment(
             postId: String,

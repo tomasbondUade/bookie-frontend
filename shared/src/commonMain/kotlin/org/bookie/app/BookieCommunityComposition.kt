@@ -15,6 +15,7 @@ import org.bookie.app.domain.repository.AuthRepository
 import org.bookie.app.domain.usecase.CreateCommunity
 import org.bookie.app.domain.usecase.CreateCommunityComment
 import org.bookie.app.domain.usecase.GetCommunities
+import org.bookie.app.domain.usecase.GetCommunityComments
 import org.bookie.app.domain.usecase.GetCommunityPosts
 import org.bookie.app.domain.usecase.GetRecommendedCommunities
 import org.bookie.app.presentation.community.CommunityViewModel
@@ -55,6 +56,7 @@ private fun makeCommunityViewModel(
         createCommunity = CreateCommunity(repository),
         getRecommended = GetRecommendedCommunities(repository),
         getPosts = GetCommunityPosts(postsRepository),
+        getComments = GetCommunityComments(postsRepository),
         createComment = CreateCommunityComment(postsRepository),
         authRepository = auth,
     )
