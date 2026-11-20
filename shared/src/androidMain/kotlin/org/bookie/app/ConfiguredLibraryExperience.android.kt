@@ -1,6 +1,7 @@
 package org.bookie.app
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
@@ -24,7 +25,11 @@ internal actual fun rememberConfiguredLibraryExperience(): ConfiguredLibraryExpe
         runCatching {
             val clients = createAndroidAuthClients(
                 context = context,
-                supabaseConfig = SupabaseAuthConfig(supabaseUrl, publishableKey),
+                supabaseConfig = SupabaseAuthConfig(
+                    url = supabaseUrl,
+                    publishableKey = publishableKey,
+                    allowLoopbackHttp = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0,
+                ),
                 bookieBaseUrl = bookieUrl,
             )
             ConfiguredLibraryExperience(clients, createAndroidLibraryCache(context))

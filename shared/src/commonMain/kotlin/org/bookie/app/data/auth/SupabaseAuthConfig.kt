@@ -7,12 +7,19 @@ import io.ktor.http.Url
 data class SupabaseAuthConfig(
     val url: String,
     val publishableKey: String,
+    // Opt-in exclusively for platform debug builds connecting to local Supabase over adb reverse.
+    val allowLoopbackHttp: Boolean = false,
 ) {
     val authBaseUrl: String = url.trimEnd('/')
 
     init {
         val parsed = Url(url)
-        require(parsed.protocol == URLProtocol.HTTPS) { "Supabase requiere HTTPS." }
+        val isLocalDebug = allowLoopbackHttp &&
+            parsed.protocol == URLProtocol.HTTP &&
+            parsed.host in setOf("127.0.0.1", "localhost")
+        require(parsed.protocol == URLProtocol.HTTPS || isLocalDebug) {
+            "Supabase requiere HTTPS (HTTP solo se permite en loopback para desarrollo)."
+        }
         require(parsed.host.isNotBlank() && parsed.user.isNullOrBlank() &&
             parsed.password.isNullOrBlank() && parsed.parameters.isEmpty() &&
             parsed.fragment.isEmpty()) { "URL de Supabase inválida." }
