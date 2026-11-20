@@ -54,6 +54,72 @@ class LibraryExperienceViewModel(
         requestPage(page = 1, append = false, preserveVisible = false)
     }
 
+    /** Select/edit first, then commit one server-confirmed status/progress update. */
+    fun selectDraftStatus(stateId: String, status: LibraryStatus) {
+        updateDraft(stateId) { it.copy(status = status) }
+    }
+
+    fun editDraftPage(stateId: String, text: String) {
+        if (text.all(Char::isDigit)) {
+            updateDraft(stateId) {
+                if (it.canEditProgress) it.copy(pageText = text) else it
+            }
+        }
+    }
+
+    fun editDraftPercentage(stateId: String, text: String) {
+        if (text.all(Char::isDigit)) {
+            updateDraft(stateId) {
+                if (it.canEditProgress) it.copy(percentageText = text) else it
+            }
+        }
+    }
+
+    fun discardDraft(stateId: String) {
+        mutableState.value = mutableState.value.copy(
+            drafts = mutableState.value.drafts - stateId,
+        )
+    }
+
+    fun saveDraft(stateId: String) {
+        if (mutationJob?.isActive == true) return
+        val entry = displayedEntries().firstOrNull { it.id == stateId } ?: return
+        val draft = mutableState.value.drafts[stateId] ?: return
+        if (!draft.hasChangesFrom(entry)) return
+
+        val pageText = if (draft.canEditProgress) draft.pageText else ""
+        val percentageText = if (draft.canEditProgress) draft.percentageText else ""
+        val page = pageText.takeIf { it.isNotBlank() }?.toIntOrNull()
+        val percentage = percentageText.takeIf { it.isNotBlank() }?.toIntOrNull()
+        if ((pageText.isNotBlank() && page == null) ||
+            (percentageText.isNotBlank() && (percentage == null || percentage !in 0..100))
+        ) {
+            actionError("Ingresá una página válida o un porcentaje entre 0 y 100.")
+            return
+        }
+
+        val input = LibraryStateInput(
+            bookId = entry.bookId,
+            status = draft.status.takeIf { it != entry.status },
+            currentPage = page?.takeIf { it != entry.currentPage },
+            progressPercentage = percentage?.takeIf { it != entry.progressPercentage },
+        )
+        runMutation(
+            "Guardando cambios…",
+            "Estado y progreso actualizados.",
+            onSuccess = { discardDraft(stateId) },
+        ) { saveState(input) }
+    }
+
+    private fun updateDraft(stateId: String, transform: (LibraryEditDraft) -> LibraryEditDraft) {
+        if (mutationJob?.isActive == true) return
+        val entry = displayedEntries().firstOrNull { it.id == stateId } ?: return
+        val old = mutableState.value.drafts[stateId] ?: LibraryEditDraft.from(entry)
+        mutableState.value = mutableState.value.copy(
+            drafts = mutableState.value.drafts + (stateId to transform(old)),
+        )
+    }
+
     fun loadNextPage() {
         val current = (mutableState.value.content as? LibraryContentState.Ready)?.snapshot ?: return
         if (!current.canLoadMore || current.isLoadingMore || readJob?.isActive == true ||
@@ -82,6 +148,11 @@ class LibraryExperienceViewModel(
     }
 
     fun updateProgress(bookId: String, currentPage: Int? = null, percentage: Int? = null) {
+        val current = displayedEntries().firstOrNull { it.bookId == bookId.trim() }
+        if (current?.status != LibraryStatus.READING) {
+            actionError("Solo podés modificar el progreso de un libro en estado Leyendo.")
+            return
+        }
         if (currentPage == null && percentage == null) {
             actionError("Indicá una página o un porcentaje para actualizar.")
             return
@@ -108,6 +179,13 @@ class LibraryExperienceViewModel(
         if (input.bookId.isBlank()) {
             actionError("Seleccioná un libro del catálogo.")
             return
+        }
+        if (input.currentPage != null || input.progressPercentage != null) {
+            val current = displayedEntries().firstOrNull { it.bookId == input.bookId }
+            if ((input.status ?: current?.status) != LibraryStatus.READING) {
+                actionError("Solo podés modificar el progreso de un libro en estado Leyendo.")
+                return
+            }
         }
         runMutation("Guardando…", successMessage) { saveState(input) }
     }
@@ -237,6 +315,7 @@ class LibraryExperienceViewModel(
     private fun <T> runMutation(
         workingMessage: String,
         successMessage: String,
+        onSuccess: () -> Unit = {},
         block: suspend () -> Resource<T>,
     ) {
         if (mutationJob?.isActive == true) return
@@ -253,6 +332,7 @@ class LibraryExperienceViewModel(
             }
             when (result) {
                 is Resource.Success -> {
+                    onSuccess()
                     mutableState.value = mutableState.value.copy(
                         action = LibraryActionState.Succeeded(successMessage),
                         pendingRemoval = null,

@@ -38,6 +38,7 @@ import org.bookie.app.presentation.challenges.ReadingChallengesScreen
 import org.bookie.app.presentation.community.CommunityScreen
 import org.bookie.app.presentation.components.BookieComponentsScreen
 import org.bookie.app.presentation.library.LibraryExperienceScreen
+import org.bookie.app.presentation.library.LibraryScreen
 import org.bookie.app.presentation.lists.BookListsScreen
 import org.bookie.app.presentation.lists.LibraryWorkspaceScreen
 import org.bookie.app.presentation.navigation.AppDestination
@@ -290,13 +291,27 @@ private fun MainAppContent(
 
                 selectedDestination == AppDestination.LIBRARY &&
                         featureViewModels?.libraryExperience != null -> {
-                    LibraryExperienceScreen(featureViewModels.libraryExperience, contentModifier)
+                    LibraryScreen(
+                        viewModel = featureViewModels.libraryExperience,
+                        onExploreBooks = {
+                            selectedRoute = AppDestination.SEARCH.route
+                            selectedSurface = AppSurface.MAIN.name
+                        },
+                        modifier = contentModifier,
+                    )
                 }
 
                 selectedDestination == AppDestination.LIBRARY &&
                         featureViewModels?.libraryExperience == null &&
                         configuredLibraryViewModel != null -> {
-                    LibraryExperienceScreen(configuredLibraryViewModel, contentModifier)
+                    LibraryScreen(
+                        viewModel = configuredLibraryViewModel,
+                        onExploreBooks = {
+                            selectedRoute = AppDestination.SEARCH.route
+                            selectedSurface = AppSurface.MAIN.name
+                        },
+                        modifier = contentModifier,
+                    )
                 }
 
                 surface == AppSurface.READING_STATS && profileStats != null -> {
