@@ -30,6 +30,10 @@ fun ReadingStatsScreen(
     onSignOut: (() -> Unit)? = null,
     onOpenLibrary: (() -> Unit)? = null,
     email: String? = null,
+    username: String? = null,
+    syncWarning: String? = null,
+    onRetrySync: (() -> Unit)? = null,
+    signOutError: String? = null,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -48,6 +52,19 @@ fun ReadingStatsScreen(
             textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         Text(email ?: "Tu perfil lector", style = MaterialTheme.typography.titleMedium,
             textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        username?.takeIf(String::isNotBlank)?.let { accountName ->
+            Text("Usuario: $accountName", style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        }
+        syncWarning?.let { warning ->
+            Text(warning, color = MaterialTheme.colorScheme.error)
+            onRetrySync?.let { retry ->
+                Button(onClick = retry, modifier = Modifier.fillMaxWidth()) {
+                    Text("Reintentar sincronización")
+                }
+            }
+        }
+        signOutError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         onEditPreferences?.let { onEdit ->
             Button(onClick = onEdit, modifier = Modifier.fillMaxWidth()) { Text("Editar preferencias") }
         }

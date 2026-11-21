@@ -77,6 +77,10 @@ fun AuthScreen(
                 CircularProgressIndicator()
                 Text("Revisando tu sesión", modifier = Modifier.padding(top = 12.dp))
             }
+            AuthUiState.SigningOut -> {
+                CircularProgressIndicator()
+                Text("Cerrando sesión…", modifier = Modifier.padding(top = 12.dp))
+            }
             is AuthUiState.SignedIn -> {
                 Text("Sesión iniciada", style = MaterialTheme.typography.headlineSmall)
                 current.email?.let { Text(it, modifier = Modifier.padding(top = 8.dp)) }

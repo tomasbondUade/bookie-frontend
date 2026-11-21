@@ -133,7 +133,7 @@ class SupabaseAuthRepository(
         val active = if (needsRefresh(current)) refreshLocked(current) else current
         if (active != null) {
             if (mutableState.value !is AuthState.SignedIn) {
-                mutableState.value = AuthState.SignedIn(active.userId, active.email)
+                mutableState.value = AuthState.SignedIn(active.userId, active.email, username = active.username)
             }
             active.accessToken
         } else null
@@ -174,7 +174,7 @@ class SupabaseAuthRepository(
     /** Never discard a valid Supabase session merely because Bookie is offline. */
     private suspend fun syncIfNeededLocked(value: StoredAuthSession) {
         if (!value.syncPending) {
-            mutableState.value = AuthState.SignedIn(value.userId, value.email)
+            mutableState.value = AuthState.SignedIn(value.userId, value.email, username = value.username)
             return
         }
         try {
@@ -182,13 +182,14 @@ class SupabaseAuthRepository(
             val synced = value.copy(syncPending = false)
             store.write(synced)
             session = synced
-            mutableState.value = AuthState.SignedIn(value.userId, value.email)
+            mutableState.value = AuthState.SignedIn(value.userId, value.email, username = value.username)
         } catch (error: Exception) {
             val mapped = error.toApiError()
             mutableState.value = AuthState.SignedIn(
                 value.userId,
                 value.email,
                 syncError = "La sesión está activa, pero no se pudo sincronizar con Bookie: ${mapped.toMessage()}",
+                username = value.username,
             )
         }
     }

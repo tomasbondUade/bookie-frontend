@@ -57,9 +57,11 @@ private fun createAppFeatureViewModels(
     client: HttpClient,
     cache: LibraryCache,
     authClients: AuthClientBundle?,
+    existingAuth: org.bookie.app.presentation.auth.AuthViewModel? = null,
+    includeAccountFactory: Boolean = true,
 ): AppFeatureViewModels {
     val series = SeriesReadingRepositoryImpl(KtorSeriesReadingRemoteDataSource(client))
-    val auth = authClients?.let { createAuthViewModel(it, cache) }
+    val auth = existingAuth ?: authClients?.let { createAuthViewModel(it, cache) }
 
     return AppFeatureViewModels(
         readingStats = ReadingStatsViewModel(
@@ -95,5 +97,17 @@ private fun createAppFeatureViewModels(
         bookTinder = authClients?.let(::createAuthenticatedBookTinderViewModel),
         readingCompatibility = authClients?.let(::createAuthenticatedReadingCompatibilityViewModel),
         readingChallenges = authClients?.let(::createAuthenticatedReadingChallengesViewModel),
+        forAccount = if (includeAccountFactory && authClients != null) {
+            { userId ->
+                require(userId.isNotBlank())
+                createAppFeatureViewModels(
+                    client = client,
+                    cache = cache,
+                    authClients = authClients,
+                    existingAuth = auth,
+                    includeAccountFactory = false,
+                )
+            }
+        } else null,
     )
 }
