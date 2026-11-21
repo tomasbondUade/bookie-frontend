@@ -1,10 +1,19 @@
 package org.bookie.app
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Groups
@@ -12,7 +21,11 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -20,15 +33,17 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -36,88 +51,51 @@ import org.bookie.app.presentation.auth.AuthScreen
 import org.bookie.app.presentation.auth.AuthUiState
 import org.bookie.app.presentation.challenges.ReadingChallengesScreen
 import org.bookie.app.presentation.community.CommunityScreen
-import org.bookie.app.presentation.components.BookieComponentsScreen
-import org.bookie.app.presentation.library.LibraryExperienceScreen
 import org.bookie.app.presentation.library.LibraryScreen
+import org.bookie.app.presentation.library.LibraryContentState
+import org.bookie.app.presentation.library.LibraryActionState
+import org.bookie.app.presentation.library.LibraryExperienceViewModel
+import org.bookie.app.presentation.library.LibraryNotConnectedScreen
+import org.bookie.app.presentation.components.BookieComponentsScreen
 import org.bookie.app.presentation.lists.BookListsScreen
 import org.bookie.app.presentation.lists.LibraryWorkspaceScreen
 import org.bookie.app.presentation.navigation.AppDestination
 import org.bookie.app.presentation.navigation.AppFeatureViewModels
 import org.bookie.app.presentation.profile.ReadingStatsScreen
-import org.bookie.app.presentation.profile.AccountScreen
-import org.bookie.app.presentation.search.MoodSearchViewModel
+import org.bookie.app.presentation.progress.ReadingProgressScreen
 import org.bookie.app.presentation.preferences.ReadingPreferencesScreen
-import org.bookie.app.presentation.preferences.ReadingPreferencesUiState
 import org.bookie.app.presentation.search.MoodSearchScreen
+import org.bookie.app.presentation.search.DiscoverScreen
+import org.bookie.app.presentation.search.SearchUiState
+import org.bookie.app.presentation.search.MoodSearchUiState
 import org.bookie.app.presentation.series.SeriesExplorerScreen
 import org.bookie.app.presentation.series.SeriesReadingScreen
 import org.bookie.app.presentation.tinder.BookTinderScreen
+import org.bookie.app.presentation.tinder.BookTinderUiState
+import org.bookie.app.presentation.tinder.BookTinderViewModel
+import org.bookie.app.presentation.components.BookCover
+import org.bookie.app.domain.model.LibraryStatus
+import org.bookie.app.domain.model.LibraryStateInput
+import org.bookie.app.domain.model.Book
 import org.bookie.app.theme.BookieTheme
 
 @Composable
 @Preview
 fun App(featureViewModels: AppFeatureViewModels? = null) {
     BookieTheme {
-        val configuredAccount = if (featureViewModels?.auth == null) {
-            rememberConfiguredAccountExperience()
-        } else null
-        val authViewModel = featureViewModels?.auth ?: configuredAccount?.authViewModel
+        val authViewModel = featureViewModels?.auth
         if (authViewModel == null) {
-            MainAppContent(featureViewModels)
+            MainAppContent(featureViewModels, authState = null)
         } else {
             val authState by authViewModel.uiState.collectAsStateWithLifecycle()
-            val preferencesViewModel = featureViewModels?.readingPreferences
-            val preferencesState = preferencesViewModel?.uiState?.collectAsStateWithLifecycle()
-
-            LaunchedEffect(authViewModel, authState, preferencesViewModel) {
-                if (preferencesViewModel != null) {
-                    val userId = (authState as? AuthUiState.SignedIn)?.userId
-                    if (userId == null) preferencesViewModel.clearForSignedOut()
-                    else preferencesViewModel.loadForAccount(userId)
+            LaunchedEffect(authViewModel) { authViewModel.restore() }
+            val accountId = (authState as? AuthUiState.SignedIn)?.userId?.takeIf(String::isNotBlank)
+            val accountFeatures = if (accountId != null && featureViewModels != null) {
+                remember(featureViewModels, accountId) {
+                    featureViewModels.forAccount?.invoke(accountId) ?: featureViewModels
                 }
-            }
-
-            if (authState !is AuthUiState.SignedIn) {
-                AuthScreen(viewModel = authViewModel)
-            } else if (
-                preferencesViewModel != null &&
-                preferencesState?.value !is ReadingPreferencesUiState.Viewing
-            ) {
-                ReadingPreferencesScreen(
-                    viewModel = preferencesViewModel,
-                    onSignIn = featureViewModels.onSignIn,
-                )
-            } else {
-                val account = authState as AuthUiState.SignedIn
-                val accountId = account.userId
-                if (accountId.isNullOrBlank()) {
-                    // A protected screen must never render without an account identity.
-                    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-                        Text("No se pudo identificar la cuenta. Cerrá sesión e ingresá nuevamente.")
-                        Button(onClick = authViewModel::signOut) {
-                            Text("Cerrar sesión")
-                        }
-                    }
-                } else key(accountId) {
-                    // Never reuse a session ViewModel with state loaded for another account.
-                    // These instances exist only while the corresponding account is signed in.
-                    val sessionFeatures = configuredAccount?.let { root ->
-                        remember(root, accountId) {
-                            root.createFeaturesForAccount(accountId)
-                        }
-                    }
-                    MainAppContent(
-                        featureViewModels = featureViewModels,
-                        currentUserId = accountId,
-                        accountViewModel = authViewModel,
-                        configuredMoodSearch = sessionFeatures?.moodSearch,
-                        configuredLibraryViewModel = sessionFeatures?.library,
-                        configuredCommunityViewModel = sessionFeatures?.community,
-                        configuredReadingPreferencesViewModel = sessionFeatures?.preferences,
-                        configuredReadingStatsViewModel = sessionFeatures?.stats,
-                    )
-                }
-            }
+            } else featureViewModels
+            MainAppContent(accountFeatures, authState)
         }
     }
 }
@@ -125,13 +103,7 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
 @Composable
 private fun MainAppContent(
     featureViewModels: AppFeatureViewModels?,
-    currentUserId: String? = null,
-    accountViewModel: org.bookie.app.presentation.auth.AuthViewModel? = null,
-    configuredMoodSearch: MoodSearchViewModel? = null,
-    configuredLibraryViewModel: org.bookie.app.presentation.library.LibraryExperienceViewModel? = null,
-    configuredCommunityViewModel: org.bookie.app.presentation.community.CommunityViewModel? = null,
-    configuredReadingPreferencesViewModel: org.bookie.app.presentation.preferences.ReadingPreferencesViewModel? = null,
-    configuredReadingStatsViewModel: org.bookie.app.presentation.profile.ReadingStatsViewModel? = null,
+    authState: AuthUiState?,
 ) {
     var selectedRoute by rememberSaveable {
             mutableStateOf(AppDestination.HOME.route)
@@ -139,34 +111,150 @@ private fun MainAppContent(
     var selectedSurface by rememberSaveable {
             mutableStateOf(AppSurface.MAIN.name)
         }
-    val profilePreferences = featureViewModels?.readingPreferences ?: configuredReadingPreferencesViewModel
-    val profileStats = featureViewModels?.readingStats ?: configuredReadingStatsViewModel
-    val fallbackMoodSearch = if (featureViewModels?.moodSearch == null && configuredMoodSearch == null) {
-            rememberConfiguredMoodSearchViewModel()
-        } else null
-    val moodSearchViewModel = featureViewModels?.moodSearch ?: configuredMoodSearch ?: fallbackMoodSearch
+    var returnRoute by rememberSaveable { mutableStateOf(AppDestination.HOME.route) }
+    var returnSurface by rememberSaveable { mutableStateOf(AppSurface.MAIN.name) }
+    var selectedProgressEntryId by rememberSaveable { mutableStateOf<String?>(null) }
+    var hadSession by rememberSaveable { mutableStateOf(false) }
+    val authViewModel = featureViewModels?.auth
+    val preferencesViewModel = featureViewModels?.readingPreferences
+
+    LaunchedEffect(authState, preferencesViewModel) {
+        val userId = (authState as? AuthUiState.SignedIn)?.userId
+        if (preferencesViewModel != null) {
+            if (userId == null) preferencesViewModel.clearForSignedOut()
+            else preferencesViewModel.loadForAccount(userId)
+        }
+        if (userId != null) {
+            hadSession = true
+            if (selectedSurface == AppSurface.AUTH.name) {
+                selectedRoute = returnRoute
+                selectedSurface = returnSurface
+            }
+        } else if (hadSession && authState is AuthUiState.Form) {
+            hadSession = false
+            selectedRoute = AppDestination.HOME.route
+            selectedSurface = AppSurface.MAIN.name
+        }
+    }
+    val requestSignIn: () -> Unit = {
+        if (authViewModel != null) {
+            returnRoute = selectedRoute
+            returnSurface = if (selectedSurface == AppSurface.AUTH.name) {
+                AppSurface.MAIN.name
+            } else selectedSurface
+            selectedSurface = AppSurface.AUTH.name
+        }
+    }
+    // Both Biblioteca and Buscar use the same authenticated client and session.
+    // The public-only fallback is retained when Supabase is not configured.
+    val configuredLibrary = if (featureViewModels == null) {
+        rememberConfiguredLibraryExperience()
+    } else null
+    val authenticatedMoodSearch = if (
+        featureViewModels?.moodSearch == null && configuredLibrary != null
+    ) {
+        remember(configuredLibrary) { configuredLibrary.moodSearchViewModel() }
+    } else null
+    val fallbackMoodSearch = if (
+        featureViewModels?.moodSearch == null && configuredLibrary == null
+    ) {
+        rememberConfiguredMoodSearchViewModel()
+    } else null
+    val moodSearchViewModel =
+        featureViewModels?.moodSearch ?: authenticatedMoodSearch ?: fallbackMoodSearch
+    val searchViewModel = featureViewModels?.bookSearch
     val fallbackBookReviews = if (featureViewModels?.bookReviews == null) {
             rememberConfiguredBookReviewsViewModel()
         } else null
     val bookReviewsViewModel = featureViewModels?.bookReviews ?: fallbackBookReviews
-    val fallbackCommunity = if (featureViewModels?.community == null && configuredCommunityViewModel == null) {
+    val fallbackCommunity = if (featureViewModels?.community == null) {
             rememberConfiguredCommunityViewModel()
         } else null
-    val communityViewModel = featureViewModels?.community ?: configuredCommunityViewModel ?: fallbackCommunity
+    val communityViewModel = featureViewModels?.community ?: fallbackCommunity
     val selectedDestination =
             AppDestination.fromRoute(selectedRoute) ?: AppDestination.HOME
     val surface = AppSurface.entries.firstOrNull {
             it.name == selectedSurface
         } ?: AppSurface.MAIN
+    val searchState = searchViewModel?.uiState?.collectAsStateWithLifecycle()?.value
+    val moodState = moodSearchViewModel?.uiState?.collectAsStateWithLifecycle()?.value
+    val bookDetailOpen = selectedDestination == AppDestination.SEARCH && (
+        (searchState as? SearchUiState.Success)?.selectedBook != null ||
+            (moodState as? MoodSearchUiState.Success)?.selectedBook != null
+    )
+    val libraryContent = featureViewModels?.libraryExperience?.uiState
+        ?.collectAsStateWithLifecycle()?.value?.content
+    val libraryAction = featureViewModels?.libraryExperience?.uiState?.value?.action
+    val progressEntry = when (libraryContent) {
+        is LibraryContentState.Ready -> libraryContent.snapshot.entries
+        is LibraryContentState.Loading -> libraryContent.previous?.entries.orEmpty()
+        else -> emptyList()
+    }.firstOrNull { it.id == selectedProgressEntryId }
+    LaunchedEffect(selectedSurface, selectedProgressEntryId, libraryContent) {
+        if (selectedSurface == AppSurface.READING_PROGRESS.name &&
+            selectedProgressEntryId != null && libraryContent == LibraryContentState.Idle
+        ) {
+            featureViewModels?.libraryExperience?.refresh()
+        }
+    }
 
+    val canHandleSystemBack = surface != AppSurface.MAIN ||
+        selectedDestination != AppDestination.HOME || bookDetailOpen
+    SystemBackHandler(enabled = canHandleSystemBack) {
+        when {
+            surface == AppSurface.AUTH -> {
+                selectedRoute = returnRoute
+                selectedSurface = returnSurface
+            }
+            surface == AppSurface.SERIES_READING -> {
+                selectedSurface = AppSurface.SERIES_DISCOVERY.name
+            }
+            surface == AppSurface.SERIES_DISCOVERY ||
+                surface == AppSurface.BOOK_TINDER ||
+                surface == AppSurface.READING_CHALLENGES ||
+                surface == AppSurface.COMPONENTS_SHOWCASE -> {
+                selectedSurface = AppSurface.MAIN.name
+            }
+            surface == AppSurface.READING_PROGRESS -> {
+                featureViewModels?.libraryExperience?.refresh()
+                selectedProgressEntryId = null
+                selectedSurface = AppSurface.MAIN.name
+            }
+            surface == AppSurface.PREFERENCES -> {
+                selectedRoute = AppDestination.PROFILE.route
+                selectedSurface = AppSurface.MAIN.name
+            }
+            bookDetailOpen -> {
+                searchViewModel?.showResults()
+                moodSearchViewModel?.showResults()
+            }
+            selectedDestination != AppDestination.HOME -> {
+                selectedRoute = AppDestination.HOME.route
+            }
+        }
+    }
+
+    // Reset remembered screen state on account changes without resetting navigation.
+    key((authState as? AuthUiState.SignedIn)?.userId ?: "signed-out") {
     Scaffold(
             modifier = Modifier.fillMaxSize(),
             bottomBar = {
-                NavigationBar {
-                    AppDestination.entries.forEach { destination ->
+                if (surface == AppSurface.MAIN && !bookDetailOpen) NavigationBar {
+                    listOf(AppDestination.HOME, AppDestination.SEARCH, AppDestination.LIBRARY).forEach { destination ->
                         NavigationBarItem(
                             selected = selectedDestination == destination,
                             onClick = {
+                                if (destination == AppDestination.LIBRARY ||
+                                    destination == AppDestination.PROFILE
+                                ) {
+                                    val userId = (authState as? AuthUiState.SignedIn)?.userId
+                                    if (userId == null && authViewModel != null) {
+                                        returnRoute = destination.route
+                                        returnSurface = AppSurface.MAIN.name
+                                        selectedSurface = AppSurface.AUTH.name
+                                        return@NavigationBarItem
+                                    }
+                                }
                                 selectedRoute = destination.route
                                 selectedSurface = AppSurface.MAIN.name
                             },
@@ -188,6 +276,24 @@ private fun MainAppContent(
                 Modifier.fillMaxSize().padding(contentPadding)
 
         when {
+                surface == AppSurface.AUTH -> {
+                    if (authViewModel != null) {
+                        AuthScreen(
+                            viewModel = authViewModel,
+                            modifier = contentModifier,
+                            onBack = {
+                                selectedSurface = returnSurface
+                                selectedRoute = returnRoute
+                            },
+                        )
+                    } else {
+                        Column(modifier = contentModifier.padding(24.dp)) {
+                            Text("Autenticación no configurada", style = MaterialTheme.typography.headlineSmall)
+                            Text("Faltan la URL pública y la clave publicable de Supabase en la configuración local de la app.")
+                        }
+                    }
+                }
+
                 surface == AppSurface.COMPONENTS_SHOWCASE -> {
                     BookieComponentsScreen(
                         modifier = contentModifier,
@@ -197,7 +303,7 @@ private fun MainAppContent(
                 surface == AppSurface.BOOK_TINDER && featureViewModels?.bookTinder != null -> {
                     BookTinderScreen(
                         viewModel = featureViewModels.bookTinder,
-                        onSignIn = featureViewModels.onSignIn,
+                        onSignIn = requestSignIn,
                         onBack = { selectedSurface = AppSurface.MAIN.name },
                         modifier = contentModifier,
                     )
@@ -207,10 +313,37 @@ private fun MainAppContent(
                         featureViewModels?.readingChallenges != null -> {
                     ReadingChallengesScreen(
                         viewModel = featureViewModels.readingChallenges,
-                        onSignIn = featureViewModels.onSignIn,
+                        onSignIn = requestSignIn,
                         onBack = { selectedSurface = AppSurface.MAIN.name },
                         modifier = contentModifier,
                     )
+                }
+
+                surface == AppSurface.READING_PROGRESS -> {
+                    val factory = featureViewModels?.createReadingProgressViewModel
+                    if (progressEntry != null && factory != null) {
+                        val progressViewModel = remember(progressEntry.id, factory) {
+                            factory(progressEntry)
+                        }
+                        ReadingProgressScreen(
+                            viewModel = progressViewModel,
+                            modifier = contentModifier,
+                            onBack = {
+                                featureViewModels?.libraryExperience?.refresh()
+                                selectedProgressEntryId = null
+                                selectedSurface = AppSurface.MAIN.name
+                            },
+                        )
+                    } else {
+                        Column(modifier = contentModifier.padding(24.dp)) {
+                            CircularProgressIndicator()
+                            Text("Cargando el progreso de lectura...")
+                            androidx.compose.material3.TextButton(onClick = {
+                                selectedProgressEntryId = null
+                                selectedSurface = AppSurface.MAIN.name
+                            }) { Text("Volver a biblioteca") }
+                        }
+                    }
                 }
 
                 surface == AppSurface.SERIES_DISCOVERY &&
@@ -221,7 +354,7 @@ private fun MainAppContent(
                             featureViewModels.seriesReading.selectSeries(seriesId)
                             selectedSurface = AppSurface.SERIES_READING.name
                         },
-                        onSignIn = featureViewModels.onSignIn,
+                        onSignIn = requestSignIn,
                         modifier = contentModifier,
                     )
                 }
@@ -231,7 +364,7 @@ private fun MainAppContent(
                     SeriesReadingScreen(
                         viewModel = featureViewModels.seriesReading,
                         onOpenBook = featureViewModels.onOpenBook,
-                        onSignIn = featureViewModels.onSignIn,
+                        onSignIn = requestSignIn,
                         onBack = {
                             selectedSurface = AppSurface.SERIES_DISCOVERY.name
                         },
@@ -240,11 +373,28 @@ private fun MainAppContent(
                 }
 
                 selectedDestination == AppDestination.SEARCH -> {
-                    if (moodSearchViewModel != null) {
-                        MoodSearchScreen(
-                            viewModel = moodSearchViewModel,
+                    if (moodSearchViewModel != null && searchViewModel != null) {
+                        DiscoverScreen(
+                            searchViewModel = searchViewModel,
+                            moodViewModel = moodSearchViewModel,
+                            tinderViewModel = featureViewModels?.bookTinder,
                             modifier = contentModifier,
                             reviewsViewModel = bookReviewsViewModel,
+                            onSignIn = requestSignIn,
+                            onSaveBook = { book ->
+                                if (authState is AuthUiState.SignedIn) {
+                                    featureViewModels?.libraryExperience?.addCatalogBook(book.id)
+                                } else requestSignIn()
+                            },
+                            onRateBook = { book, rating ->
+                                if (authState is AuthUiState.SignedIn) {
+                                    featureViewModels?.libraryExperience?.save(
+                                        LibraryStateInput(bookId = book.id, rating = rating),
+                                        "Calificación guardada.",
+                                    )
+                                } else requestSignIn()
+                            },
+                            libraryAction = libraryAction,
                         )
                     } else {
                         Column(modifier = contentModifier.padding(24.dp)) {
@@ -254,13 +404,71 @@ private fun MainAppContent(
                     }
                 }
 
+                selectedDestination == AppDestination.LIBRARY -> {
+                    val libraryViewModel = featureViewModels?.libraryExperience
+                    val listsViewModel = featureViewModels?.bookLists
+                    when {
+                        libraryViewModel != null && listsViewModel != null -> LibraryWorkspaceScreen(
+                            libraryViewModel = libraryViewModel,
+                            listsViewModel = listsViewModel,
+                            onSignIn = requestSignIn,
+                            modifier = contentModifier,
+                            onOpenProgress = { entry ->
+                                selectedProgressEntryId = entry.id
+                                selectedSurface = AppSurface.READING_PROGRESS.name
+                            },
+                        )
+                        listsViewModel != null -> BookListsScreen(
+                            viewModel = listsViewModel,
+                            onSignIn = requestSignIn,
+                            modifier = contentModifier,
+                        )
+                        libraryViewModel != null -> LibraryScreen(
+                            viewModel = libraryViewModel,
+                            onExploreBooks = {
+                                selectedRoute = AppDestination.SEARCH.route
+                                selectedSurface = AppSurface.MAIN.name
+                            },
+                            modifier = contentModifier,
+                        )
+                        configuredLibrary != null -> {
+                            val authState by configuredLibrary.authViewModel.uiState
+                                .collectAsStateWithLifecycle()
+                            val signedIn = authState as? AuthUiState.SignedIn
+                            if (signedIn != null) {
+                                // A fresh ViewModel per user prevents leaking previous
+                                // user's visible items across account switches.
+                                val accountLibrary = remember(configuredLibrary, signedIn.userId) {
+                                    configuredLibrary.libraryViewModel()
+                                }
+                                LibraryScreen(
+                                    viewModel = accountLibrary,
+                                    onExploreBooks = {
+                                        selectedRoute = AppDestination.SEARCH.route
+                                        selectedSurface = AppSurface.MAIN.name
+                                    },
+                                    modifier = contentModifier,
+                                )
+                            } else {
+                                AuthScreen(configuredLibrary.authViewModel, contentModifier)
+                            }
+                        }
+                        else -> LibraryNotConnectedScreen(
+                            onSignIn = requestSignIn.takeIf { authViewModel != null },
+                            modifier = contentModifier,
+                        )
+                    }
+                }
+
                 selectedDestination == AppDestination.COMMUNITY -> {
                     if (communityViewModel != null) {
                         CommunityScreen(
                             viewModel = communityViewModel,
                             compatibilityViewModel = featureViewModels?.readingCompatibility,
-                            currentUserId = currentUserId,
-                            onSignIn = featureViewModels?.onSignIn,
+                            postsViewModelFactory = featureViewModels?.createCommunityPostsViewModel,
+                            currentUserId = (authState as? AuthUiState.SignedIn)?.userId,
+                            onSignIn = requestSignIn.takeIf { authViewModel != null },
+                            onBack = { selectedRoute = AppDestination.HOME.route },
                             modifier = contentModifier,
                         )
                     } else {
@@ -271,125 +479,90 @@ private fun MainAppContent(
                     }
                 }
 
-                selectedDestination == AppDestination.LIBRARY && featureViewModels?.bookLists != null &&
-                        featureViewModels.libraryExperience != null -> {
-                    LibraryWorkspaceScreen(
-                        libraryViewModel = featureViewModels.libraryExperience,
-                        listsViewModel = featureViewModels.bookLists,
-                        onSignIn = featureViewModels.onSignIn,
-                        modifier = contentModifier,
-                    )
-                }
-
-                selectedDestination == AppDestination.LIBRARY && featureViewModels?.bookLists != null -> {
-                    BookListsScreen(
-                        viewModel = featureViewModels.bookLists,
-                        onSignIn = featureViewModels.onSignIn,
-                        modifier = contentModifier,
-                    )
-                }
-
-                selectedDestination == AppDestination.LIBRARY &&
-                        featureViewModels?.libraryExperience != null -> {
-                    LibraryScreen(
-                        viewModel = featureViewModels.libraryExperience,
-                        onExploreBooks = {
-                            selectedRoute = AppDestination.SEARCH.route
-                            selectedSurface = AppSurface.MAIN.name
-                        },
-                        modifier = contentModifier,
-                    )
-                }
-
-                selectedDestination == AppDestination.LIBRARY &&
-                        featureViewModels?.libraryExperience == null &&
-                        configuredLibraryViewModel != null -> {
-                    LibraryScreen(
-                        viewModel = configuredLibraryViewModel,
-                        onExploreBooks = {
-                            selectedRoute = AppDestination.SEARCH.route
-                            selectedSurface = AppSurface.MAIN.name
-                        },
-                        modifier = contentModifier,
-                    )
-                }
-
-                surface == AppSurface.READING_STATS && profileStats != null -> {
-                    ReadingStatsScreen(
-                        viewModel = profileStats,
-                        modifier = contentModifier,
-                        onSessionExpired = featureViewModels?.onSignIn,
-                        onEditPreferences = profilePreferences?.let { preferences ->
-                            {
-                                preferences.beginEdit()
-                                selectedSurface = AppSurface.PREFERENCES.name
-                            }
-                        },
-                    )
-                }
-
-                selectedDestination == AppDestination.PROFILE && accountViewModel != null &&
-                        surface == AppSurface.MAIN -> {
-                    AccountScreen(
-                        authViewModel = accountViewModel,
-                        onOpenStatistics = if (profileStats != null) {
-                            { selectedSurface = AppSurface.READING_STATS.name }
-                        } else null,
-                        onOpenPreferences = profilePreferences?.let { preferences ->
-                            {
-                                currentUserId?.let(preferences::loadForAccount)
-                                selectedSurface = AppSurface.PREFERENCES.name
-                            }
-                        },
-                        modifier = contentModifier,
-                    )
-                }
-
                 surface == AppSurface.PREFERENCES &&
-                        profilePreferences != null -> {
+                        featureViewModels?.readingPreferences != null -> {
                     ReadingPreferencesScreen(
-                        viewModel = profilePreferences,
+                        viewModel = featureViewModels.readingPreferences,
                         modifier = contentModifier,
                         onClose = {
                             selectedRoute = AppDestination.PROFILE.route
                             selectedSurface = AppSurface.MAIN.name
                         },
-                        onSignIn = featureViewModels?.onSignIn,
+                        onSignIn = requestSignIn,
                     )
                 }
 
                 selectedDestination == AppDestination.PROFILE &&
                         featureViewModels != null -> {
-                    ReadingStatsScreen(
+                    if (authState == AuthUiState.SigningOut) {
+                        Column(
+                            modifier = contentModifier.padding(24.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            CircularProgressIndicator()
+                            Text("Cerrando sesión y limpiando datos locales…")
+                        }
+                    } else if (authState !is AuthUiState.SignedIn && authViewModel != null) {
+                        AuthScreen(authViewModel, contentModifier)
+                    } else ReadingStatsScreen(
                         viewModel = featureViewModels.readingStats,
                         modifier = contentModifier,
-                        onSessionExpired = featureViewModels.onSignIn,
+                        onSessionExpired = requestSignIn,
                         onEditPreferences = featureViewModels.readingPreferences?.let { preferencesViewModel ->
                             {
                                 preferencesViewModel.beginEdit()
                                 selectedSurface = AppSurface.PREFERENCES.name
                             }
                         },
+                        onSignOut = authViewModel?.let { viewModel -> ({ viewModel.signOut() }) },
+                        onOpenLibrary = { selectedRoute = AppDestination.LIBRARY.route },
+                        email = (authState as? AuthUiState.SignedIn)?.email,
+                        username = (authState as? AuthUiState.SignedIn)?.username,
+                        syncWarning = (authState as? AuthUiState.SignedIn)?.syncWarning,
+                        onRetrySync = authViewModel?.let { vm -> ({ vm.retrySync() }) },
+                        signOutError = (authState as? AuthUiState.SignedIn)?.signOutError,
                     )
                 }
 
                 selectedDestination == AppDestination.HOME -> {
-                    HomePlaceholder(
+                    HomeScreen(
                         modifier = contentModifier,
+                        onSearch = { selectedRoute = AppDestination.SEARCH.route },
+                        onCommunity = { selectedRoute = AppDestination.COMMUNITY.route },
+                        onLibrary = {
+                            val signedIn = authState is AuthUiState.SignedIn
+                            if (!signedIn && authViewModel != null) {
+                                returnRoute = AppDestination.LIBRARY.route
+                                returnSurface = AppSurface.MAIN.name
+                                selectedSurface = AppSurface.AUTH.name
+                            } else selectedRoute = AppDestination.LIBRARY.route
+                        },
                         onExploreSeries = {
                             if (featureViewModels != null) {
                                 selectedSurface = AppSurface.SERIES_DISCOVERY.name
                             }
                         },
                         onExploreTinder = if (featureViewModels?.bookTinder != null) {
-                            { selectedSurface = AppSurface.BOOK_TINDER.name }
+                            {
+                                if (authState is AuthUiState.SignedIn) selectedSurface = AppSurface.BOOK_TINDER.name
+                                else requestSignIn()
+                            }
                         } else null,
                         onExploreChallenges = if (featureViewModels?.readingChallenges != null) {
-                            { selectedSurface = AppSurface.READING_CHALLENGES.name }
+                            {
+                                if (authState is AuthUiState.SignedIn) selectedSurface = AppSurface.READING_CHALLENGES.name
+                                else requestSignIn()
+                            }
                         } else null,
-                        onShowComponents = {
-                            selectedSurface = AppSurface.COMPONENTS_SHOWCASE.name
+                        isSignedIn = authState is AuthUiState.SignedIn,
+                        accountId = (authState as? AuthUiState.SignedIn)?.userId,
+                        onSignIn = requestSignIn.takeIf { authViewModel != null },
+                        onProfile = {
+                            if (authState is AuthUiState.SignedIn) selectedRoute = AppDestination.PROFILE.route
+                            else requestSignIn()
                         },
+                        tinderViewModel = featureViewModels?.bookTinder,
+                        libraryViewModel = featureViewModels?.libraryExperience,
                     )
                 }
 
@@ -399,78 +572,131 @@ private fun MainAppContent(
                 )
         }
     }
+    }
 }
 
 private enum class AppSurface {
     MAIN,
+    AUTH,
     SERIES_DISCOVERY,
     SERIES_READING,
     BOOK_TINDER,
     READING_CHALLENGES,
+    READING_PROGRESS,
     PREFERENCES,
-    READING_STATS,
     COMPONENTS_SHOWCASE,
 }
 
 @Composable
-private fun HomePlaceholder(
+private fun HomeScreen(
     modifier: Modifier = Modifier,
+    onSearch: () -> Unit,
+    onCommunity: () -> Unit,
+    onLibrary: () -> Unit,
     onExploreSeries: () -> Unit,
     onExploreTinder: (() -> Unit)?,
     onExploreChallenges: (() -> Unit)?,
-    onShowComponents: () -> Unit,
+    isSignedIn: Boolean,
+    accountId: String?,
+    onSignIn: (() -> Unit)?,
+    onProfile: () -> Unit,
+    tinderViewModel: BookTinderViewModel?,
+    libraryViewModel: LibraryExperienceViewModel?,
 ) {
-    Column(
-        modifier = modifier.padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Icon(
-            imageVector = Icons.Default.Home,
-            contentDescription = null,
-            modifier = Modifier.size(48.dp),
-            tint = MaterialTheme.colorScheme.primary,
-        )
-        Text(
-            text = "Inicio",
-            modifier = Modifier.padding(top = 16.dp),
-            style = MaterialTheme.typography.headlineSmall,
-        )
-        Text(
-            text = "Pantalla en preparación",
-            modifier = Modifier.padding(top = 8.dp),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Button(
-            onClick = onExploreSeries,
-            modifier = Modifier.padding(top = 16.dp),
-        ) {
-            Text("Explorar sagas")
-        }
-        onExploreTinder?.let { openTinder ->
-            Button(
-                onClick = openTinder,
-                modifier = Modifier.padding(top = 16.dp),
-            ) {
-                Text("Tinder de libros")
-            }
-        }
-        onExploreChallenges?.let { openChallenges ->
-            Button(
-                onClick = openChallenges,
-                modifier = Modifier.padding(top = 16.dp),
-            ) {
-                Text("Retos de lectura")
-            }
-        }
-        Button(
-            onClick = onShowComponents,
-            modifier = Modifier.padding(top = 16.dp),
-        ) {
-            Text("Ver componentes")
+    var homeTab by rememberSaveable { mutableStateOf(0) }
+    val feed = tinderViewModel?.uiState?.collectAsStateWithLifecycle()?.value
+    val library = libraryViewModel?.uiState?.collectAsStateWithLifecycle()?.value
+    LaunchedEffect(libraryViewModel, isSignedIn) {
+        if (isSignedIn && libraryViewModel?.uiState?.value?.content == LibraryContentState.Idle) {
+            libraryViewModel.refresh()
         }
     }
+    val currentlyReading = (library?.content as? LibraryContentState.Ready)
+        ?.snapshot?.entries?.firstOrNull { it.status == LibraryStatus.READING }
+    val recommendation = (feed as? BookTinderUiState.Ready)?.feed?.books?.firstOrNull()?.book
+    LaunchedEffect(accountId, tinderViewModel) {
+        if (accountId != null) tinderViewModel?.loadFeed()
+    }
+    Column(
+        modifier = modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Spacer(Modifier.width(48.dp))
+            Text("INICIO", modifier = Modifier.weight(1f), textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.titleLarge)
+            IconButton(onClick = onProfile) {
+                Icon(Icons.Default.AccountCircle, contentDescription = "Abrir perfil")
+            }
+        }
+        Text("Para vos", style = MaterialTheme.typography.titleMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("Recomendados", "Continuar leyendo").forEachIndexed { index, label ->
+                androidx.compose.material3.FilterChip(
+                    selected = homeTab == index,
+                    onClick = { homeTab = index },
+                    label = { Text(label) },
+                )
+            }
+        }
+        if (homeTab == 0) {
+            if (recommendation != null && isSignedIn) {
+                FeaturedBook(recommendation)
+                onExploreTinder?.let { action ->
+                    Button(onClick = action, modifier = Modifier.fillMaxWidth()) { Text("Ver recomendación") }
+                }
+            } else {
+                Text(
+                    if (isSignedIn) "Todavía no hay recomendaciones disponibles."
+                    else "Descubrí libros sin iniciar sesión. Para recomendaciones personales, ingresá a tu cuenta.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Button(onClick = onSearch, modifier = Modifier.fillMaxWidth()) { Text("Descubrir libros") }
+            }
+        } else if (currentlyReading != null && isSignedIn) {
+            FeaturedBook(currentlyReading.book)
+            Text("${currentlyReading.progressPercentage ?: 0}% leído")
+            LinearProgressIndicator(
+                progress = { (currentlyReading.progressPercentage ?: 0) / 100f },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Button(onClick = onLibrary, modifier = Modifier.fillMaxWidth()) { Text("Abrir mi biblioteca") }
+        } else {
+            Text("Todavía no tenés una lectura en progreso.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Button(onClick = onLibrary, modifier = Modifier.fillMaxWidth()) { Text("Ir a biblioteca") }
+        }
+        HorizontalDivider()
+        Text("Explorar Bookie", style = MaterialTheme.typography.titleMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            androidx.compose.material3.OutlinedButton(onClick = onCommunity, modifier = Modifier.weight(1f)) {
+                Text("Comunidades")
+            }
+            androidx.compose.material3.OutlinedButton(onClick = onExploreSeries, modifier = Modifier.weight(1f)) {
+                Text("Sagas")
+            }
+        }
+        onExploreChallenges?.let { action ->
+            androidx.compose.material3.TextButton(onClick = action) { Text("Retos de lectura") }
+        }
+        if (!isSignedIn) onSignIn?.let { action ->
+            androidx.compose.material3.TextButton(onClick = action) { Text("Iniciar sesión o crear cuenta") }
+        }
+    }
+}
+
+@Composable
+private fun FeaturedBook(book: Book) {
+    Box(
+        modifier = Modifier.fillMaxWidth().height(220.dp)
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center,
+    ) {
+        BookCover(book, Modifier.size(width = 126.dp, height = 184.dp))
+    }
+    Text(book.title, style = MaterialTheme.typography.titleLarge)
+    Text(book.authors.joinToString().ifBlank { "Autor desconocido" },
+        color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(book.genres.firstOrNull().orEmpty(), style = MaterialTheme.typography.bodySmall)
 }
 
 @Composable

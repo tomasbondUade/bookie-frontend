@@ -64,7 +64,7 @@ private val BookieLightColorScheme = lightColorScheme(
 // Tema principal de Bookie
 @Composable
 fun BookieTheme(
-    darkTheme: Boolean = true,
+    darkTheme: Boolean = false,
     content: @Composable () -> Unit
 ) {
 

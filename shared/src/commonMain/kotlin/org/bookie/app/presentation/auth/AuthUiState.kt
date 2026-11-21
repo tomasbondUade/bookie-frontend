@@ -21,8 +21,8 @@ sealed interface AuthUiState {
         val email: String?,
         val userId: String? = null,
         val username: String? = null,
-        val error: String? = null,
         val syncWarning: String? = null,
+        val signOutError: String? = null,
     ) : AuthUiState
 
     data object SigningOut : AuthUiState

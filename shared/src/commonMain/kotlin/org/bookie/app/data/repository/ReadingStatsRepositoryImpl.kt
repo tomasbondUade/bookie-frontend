@@ -3,7 +3,6 @@ package org.bookie.app.data.repository
 import org.bookie.app.data.mapper.toDomain
 import org.bookie.app.data.remote.ApiError
 import org.bookie.app.data.remote.ReadingStatsRemoteDataSource
-import org.bookie.app.data.remote.toBookieErrorMessage
 import org.bookie.app.data.remote.toApiError
 import org.bookie.app.data.remote.toMessage
 import org.bookie.app.domain.model.ReadingStats
@@ -19,7 +18,7 @@ class ReadingStatsRepositoryImpl(
     } catch (exception: Exception) {
         val apiError = exception.toApiError()
         Resource.Error(
-            message = exception.toBookieErrorMessage(),
+            message = apiError.toMessage(),
             kind = if (apiError is ApiError.Http && apiError.statusCode == 401) {
                 ResourceErrorKind.UNAUTHORIZED
             } else {

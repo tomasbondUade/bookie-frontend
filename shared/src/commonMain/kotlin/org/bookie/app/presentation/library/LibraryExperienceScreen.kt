@@ -2,10 +2,12 @@ package org.bookie.app.presentation.library
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
@@ -16,6 +18,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -24,22 +27,27 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.bookie.app.domain.model.LibraryBookState
 import org.bookie.app.domain.model.LibraryStateInput
 import org.bookie.app.domain.model.LibraryStatus
+import org.bookie.app.presentation.components.BookCover
 
 @Composable
 fun LibraryExperienceScreen(
     viewModel: LibraryExperienceViewModel,
     modifier: Modifier = Modifier,
+    onOpenProgress: ((LibraryBookState) -> Unit)? = null,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var query by rememberSaveable { mutableStateOf("") }
 
     LaunchedEffect(viewModel) {
         if (viewModel.uiState.value.content == LibraryContentState.Idle) viewModel.refresh()
@@ -52,8 +60,16 @@ fun LibraryExperienceScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("Mi biblioteca", style = MaterialTheme.typography.headlineSmall)
+        Text("BIBLIOTECA", style = MaterialTheme.typography.titleLarge,
+            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         LibraryFilters(state.statusFilter, state.favoritesOnly, viewModel)
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            placeholder = { Text("Buscar en mi biblioteca") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
         LibraryActionMessage(state.action, onDismiss = viewModel::dismissAction)
 
         when (val content = state.content) {
@@ -62,7 +78,9 @@ fun LibraryExperienceScreen(
                 CircularProgressIndicator()
                 Text("Cargando tu biblioteca")
                 if (content is LibraryContentState.Loading && content.previous != null) {
-                    content.previous.entries.forEach { LibraryEntry(it, viewModel) }
+                    content.previous.entries.filter { it.matches(query) }.forEach {
+                        LibraryEntry(it, viewModel, onOpenProgress)
+                    }
                 }
             }
 
@@ -81,7 +99,11 @@ fun LibraryExperienceScreen(
                 if (content.snapshot.stale) {
                     Text("Mostrando la última copia guardada mientras se actualiza.")
                 }
-                content.snapshot.entries.forEach { LibraryEntry(it, viewModel) }
+                val visible = content.snapshot.entries.filter { it.matches(query) }
+                if (visible.isEmpty() && query.isNotBlank()) {
+                    Text("No hay libros con ese título o autor en esta página.")
+                }
+                visible.forEach { LibraryEntry(it, viewModel, onOpenProgress) }
                 if (content.snapshot.canLoadMore) {
                     Button(
                         onClick = viewModel::loadNextPage,
@@ -168,23 +190,36 @@ private fun LibraryActionMessage(action: LibraryActionState, onDismiss: () -> Un
 }
 
 @Composable
-private fun LibraryEntry(entry: LibraryBookState, viewModel: LibraryExperienceViewModel) {
+private fun LibraryEntry(
+    entry: LibraryBookState,
+    viewModel: LibraryExperienceViewModel,
+    onOpenProgress: ((LibraryBookState) -> Unit)?,
+) {
     var editing by remember(entry.id) { mutableStateOf(false) }
     Column(
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Text(entry.book.title, style = MaterialTheme.typography.titleMedium)
-        Text(entry.book.authors.joinToString().ifBlank { "Autor desconocido" })
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            BookCover(entry.book, Modifier.size(width = 72.dp, height = 96.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(entry.book.title, style = MaterialTheme.typography.titleMedium)
+                Text(entry.book.authors.joinToString().ifBlank { "Autor desconocido" })
+                Text(entry.status.label(), style = MaterialTheme.typography.labelMedium)
+            }
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(entry.status.label())
             entry.rating?.let { Text("$it/5") }
             if (entry.isFavorite) Text("Favorito")
             if (entry.isAbandoned) Text("Abandonado")
         }
-        entry.progressPercentage?.let { Text("Progreso: $it%") }
+        entry.progressPercentage?.let {
+            Text("Progreso: $it%")
+            LinearProgressIndicator(progress = { it / 100f }, modifier = Modifier.fillMaxWidth())
+        }
         entry.currentPage?.let { Text("Página: $it") }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(
                 onClick = {
                     viewModel.save(
@@ -197,6 +232,11 @@ private fun LibraryEntry(entry: LibraryBookState, viewModel: LibraryExperienceVi
                 viewModel.dismissAction()
                 editing = true
             }) { Text("Editar") }
+            if (entry.status == LibraryStatus.READING) {
+                onOpenProgress?.let { open ->
+                    TextButton(onClick = { open(entry) }) { Text("Registrar progreso") }
+                }
+            }
             TextButton(onClick = { viewModel.requestRemoval(entry.id) }) { Text("Quitar de biblioteca") }
         }
     }
@@ -204,6 +244,12 @@ private fun LibraryEntry(entry: LibraryBookState, viewModel: LibraryExperienceVi
     if (editing) {
         LibraryEntryEditorDialog(entry, viewModel, onDismiss = { editing = false })
     }
+}
+
+private fun LibraryBookState.matches(query: String): Boolean {
+    val text = query.trim()
+    return text.isEmpty() || book.title.contains(text, ignoreCase = true) ||
+        book.authors.any { it.contains(text, ignoreCase = true) }
 }
 
 @Composable

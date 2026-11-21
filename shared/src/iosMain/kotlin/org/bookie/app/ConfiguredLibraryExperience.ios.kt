@@ -9,8 +9,8 @@ import org.bookie.app.data.local.createIosLibraryCache
 import platform.Foundation.NSBundle
 
 @Composable
-internal actual fun rememberConfiguredAccountExperience(): ConfiguredAccountExperience? {
-    val backendUrl = platformBookieApiBaseUrl()
+internal actual fun rememberConfiguredLibraryExperience(): ConfiguredLibraryExperience? {
+    val bookieUrl = platformBookieApiBaseUrl()
     val supabaseUrl = (NSBundle.mainBundle.objectForInfoDictionaryKey(
         "BOOKIE_SUPABASE_URL",
     ) as? String)?.trim()?.takeIf(String::isNotEmpty)
@@ -18,20 +18,23 @@ internal actual fun rememberConfiguredAccountExperience(): ConfiguredAccountExpe
         "BOOKIE_SUPABASE_PUBLISHABLE_KEY",
     ) as? String)?.trim()?.takeIf(String::isNotEmpty)
 
-    if (backendUrl.isNullOrBlank() || supabaseUrl.isNullOrBlank() || publishableKey.isNullOrBlank()) {
+    if (bookieUrl.isNullOrBlank() || supabaseUrl.isNullOrBlank() || publishableKey.isNullOrBlank()) {
         return null
     }
-    val experience = remember(backendUrl, supabaseUrl, publishableKey) {
+
+    val experience = remember(bookieUrl, supabaseUrl, publishableKey) {
         runCatching {
             val clients = createIosAuthClients(
                 SupabaseAuthConfig(supabaseUrl, publishableKey),
-                backendUrl,
+                bookieUrl,
             )
-            ConfiguredAccountExperience(clients, createIosLibraryCache())
+            ConfiguredLibraryExperience(clients, createIosLibraryCache())
         }.getOrNull()
     }
     if (experience != null) {
-        DisposableEffect(experience) { onDispose { experience.close() } }
+        DisposableEffect(experience) {
+            onDispose { experience.close() }
+        }
     }
     return experience
 }

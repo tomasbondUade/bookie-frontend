@@ -11,19 +11,17 @@ import org.bookie.app.data.auth.createAndroidAuthClients
 import org.bookie.app.data.local.createAndroidLibraryCache
 
 @Composable
-internal actual fun rememberConfiguredAccountExperience(): ConfiguredAccountExperience? {
+internal actual fun rememberConfiguredLibraryExperience(): ConfiguredLibraryExperience? {
     val context = LocalContext.current.applicationContext
-    val backendUrl = platformBookieApiBaseUrl()
-    val supabaseUrl = remember(context) { context.publicConfigString("bookie_supabase_url") }
-    val publishableKey = remember(context) {
-        context.publicConfigString("bookie_supabase_publishable_key")
-    }
+    val bookieUrl = platformBookieApiBaseUrl()
+    val supabaseUrl = remember(context) { context.configString("bookie_supabase_url") }
+    val publishableKey = remember(context) { context.configString("bookie_supabase_publishable_key") }
 
-    if (backendUrl.isNullOrBlank() || supabaseUrl.isNullOrBlank() || publishableKey.isNullOrBlank()) {
+    if (bookieUrl.isNullOrBlank() || supabaseUrl.isNullOrBlank() || publishableKey.isNullOrBlank()) {
         return null
     }
 
-    val experience = remember(context, backendUrl, supabaseUrl, publishableKey) {
+    val experience = remember(context, bookieUrl, supabaseUrl, publishableKey) {
         runCatching {
             val clients = createAndroidAuthClients(
                 context = context,
@@ -32,9 +30,9 @@ internal actual fun rememberConfiguredAccountExperience(): ConfiguredAccountExpe
                     publishableKey = publishableKey,
                     allowLoopbackHttp = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0,
                 ),
-                bookieBaseUrl = backendUrl,
+                bookieBaseUrl = bookieUrl,
             )
-            ConfiguredAccountExperience(clients, createAndroidLibraryCache(context))
+            ConfiguredLibraryExperience(clients, createAndroidLibraryCache(context))
         }.getOrNull()
     }
     if (experience != null) {
@@ -45,7 +43,7 @@ internal actual fun rememberConfiguredAccountExperience(): ConfiguredAccountExpe
     return experience
 }
 
-private fun Context.publicConfigString(name: String): String? {
+private fun Context.configString(name: String): String? {
     val id = resources.getIdentifier(name, "string", packageName)
     return if (id == 0) null else getString(id).trim().takeIf(String::isNotEmpty)
 }

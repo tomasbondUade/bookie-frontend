@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
@@ -17,10 +19,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.bookie.app.domain.model.Community
@@ -28,13 +35,16 @@ import org.bookie.app.domain.model.CommunityComment
 import org.bookie.app.presentation.components.BookieEmptyState
 import org.bookie.app.presentation.components.BookieErrorState
 import org.bookie.app.presentation.components.BookieLoadingState
+import org.bookie.app.SystemBackHandler
 
 @Composable
 fun CommunityScreen(
     viewModel: CommunityViewModel,
     compatibilityViewModel: ReadingCompatibilityViewModel? = null,
+    postsViewModelFactory: ((String) -> CommunityPostsViewModel)? = null,
     currentUserId: String? = null,
     onSignIn: (() -> Unit)? = null,
+    onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val catalog by viewModel.catalog.collectAsStateWithLifecycle()
@@ -43,8 +53,33 @@ fun CommunityScreen(
     val posts by viewModel.posts.collectAsStateWithLifecycle()
     val commentThreads by viewModel.commentThreads.collectAsStateWithLifecycle()
     val create by viewModel.create.collectAsStateWithLifecycle()
+    var query by rememberSaveable { mutableStateOf("") }
+    var composePost by rememberSaveable { mutableStateOf(false) }
+    var selectedPostId by rememberSaveable { mutableStateOf<String?>(null) }
+    val selectedPost = (posts as? CommunityPostsState.Ready)?.posts
+        ?.firstOrNull { it.id == selectedPostId }
+    SystemBackHandler(enabled = selectedPostId != null) {
+        selectedPostId = null
+    }
+    val postsViewModel = selected?.id?.let { communityId ->
+        remember(communityId, postsViewModelFactory) { postsViewModelFactory?.invoke(communityId) }
+    }
+    val postDraft = postsViewModel?.uiState?.collectAsStateWithLifecycle()?.value
+
+    LaunchedEffect(postDraft?.publishSuccess) {
+        if (postDraft?.publishSuccess == true) {
+            composePost = false
+            viewModel.refreshPosts()
+        }
+    }
 
     LaunchedEffect(viewModel) { viewModel.loadCommunities() }
+    LaunchedEffect(selectedPostId) {
+        val postId = selectedPostId
+        if (postId != null && commentThreads[postId]?.expanded != true) {
+            viewModel.toggleCommentComposer(postId)
+        }
+    }
 
     if (compatibilityViewModel != null) {
         ReadingCompatibilityDialog(compatibilityViewModel, onSignIn)
@@ -88,12 +123,53 @@ fun CommunityScreen(
                 enabled = !create.saving,
             ) { Text("Cancelar") }
         } else if (selected != null) {
-            TextButton(onClick = viewModel::showCommunities) { Text("Volver a comunidades") }
+            if (selectedPost != null) {
+                TextButton(onClick = { selectedPostId = null }) { Text("Volver a comunidad") }
+                Text("POST EN ${selected!!.name.uppercase()}", style = MaterialTheme.typography.titleMedium,
+                    textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                Column(
+                    modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(selectedPost.title, style = MaterialTheme.typography.headlineSmall,
+                        textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                    Text("Por ${selectedPost.author?.username ?: "un lector"} · ${selectedPost.createdAt.substringBefore('T')}")
+                    Text(selectedPost.content)
+                    val targetUserId = selectedPost.author?.id?.takeIf(String::isNotBlank)
+                        ?: selectedPost.authorId.takeIf(String::isNotBlank)
+                    if (compatibilityViewModel != null && targetUserId != null && targetUserId != currentUserId) {
+                        TextButton(onClick = { compatibilityViewModel.compareWith(targetUserId) }) {
+                            Text("Ver compatibilidad lectora")
+                        }
+                    }
+                    HorizontalDivider()
+                    Text("Respuestas", style = MaterialTheme.typography.titleMedium)
+                    CommunityCommentComposer(
+                        state = commentThreads[selectedPost.id] ?: CommunityCommentThreadState(),
+                        onDraftChanged = { viewModel.onCommentDraftChanged(selectedPost.id, it) },
+                        onReply = { viewModel.replyToComment(selectedPost.id, it) },
+                        onCancelReply = { viewModel.cancelReply(selectedPost.id) },
+                        onSend = { viewModel.sendComment(selectedPost.id) },
+                        onRetryComments = { viewModel.retryComments(selectedPost.id) },
+                        onDismissFeedback = { viewModel.dismissCommentFeedback(selectedPost.id) },
+                        onSignIn = onSignIn,
+                    )
+                }
+            } else {
+            TextButton(onClick = { selectedPostId = null; viewModel.showCommunities() }) {
+                Text("Volver a comunidades")
+            }
             Text(selected!!.name, style = MaterialTheme.typography.headlineSmall)
             Text(selected!!.description)
             if (selected!!.tags.isNotEmpty()) {
                 Text(selected!!.tags.joinToString(" · "), style = MaterialTheme.typography.labelMedium)
             }
+            if (postsViewModel != null) Button(
+                onClick = {
+                    if (currentUserId == null) onSignIn?.invoke() else composePost = true
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Crear publicación") }
             Text("Publicaciones", style = MaterialTheme.typography.titleLarge)
             when (val current = posts) {
                 CommunityPostsState.Idle, CommunityPostsState.Loading ->
@@ -107,9 +183,7 @@ fun CommunityScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     items(current.posts, key = { it.id }) { post ->
-                        val targetUserId = post.author?.id?.takeIf(String::isNotBlank)
-                            ?: post.authorId.takeIf(String::isNotBlank)
-                        Card(modifier = Modifier.fillMaxWidth()) {
+                        Card(onClick = { selectedPostId = post.id }, modifier = Modifier.fillMaxWidth()) {
                             Column(
                                 modifier = Modifier.padding(12.dp),
                                 verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -118,40 +192,25 @@ fun CommunityScreen(
                                 post.author?.username?.let { Text("Por $it", style = MaterialTheme.typography.labelMedium) }
                                 Text(post.content)
                                 Text(post.createdAt.substringBefore('T'), style = MaterialTheme.typography.labelSmall)
-                                if (
-                                    compatibilityViewModel != null && targetUserId != null &&
-                                    targetUserId != currentUserId
-                                ) {
-                                    TextButton(
-                                        onClick = { compatibilityViewModel.compareWith(targetUserId) },
-                                    ) { Text("Ver compatibilidad lectora") }
-                                }
-                                val commentState = commentThreads[post.id] ?: CommunityCommentThreadState()
-                                TextButton(
-                                    onClick = { viewModel.toggleCommentComposer(post.id) },
-                                    enabled = !commentState.sending,
-                                ) {
-                                    Text(if (commentState.expanded) "Cerrar comentarios" else "Comentar")
-                                }
-                                if (commentState.expanded) {
-                                    CommunityCommentComposer(
-                                        state = commentState,
-                                        onDraftChanged = { viewModel.onCommentDraftChanged(post.id, it) },
-                                        onReply = { viewModel.replyToComment(post.id, it) },
-                                        onCancelReply = { viewModel.cancelReply(post.id) },
-                                        onSend = { viewModel.sendComment(post.id) },
-                                        onRetryComments = { viewModel.retryComments(post.id) },
-                                        onDismissFeedback = { viewModel.dismissCommentFeedback(post.id) },
-                                        onSignIn = onSignIn,
-                                    )
-                                }
+                                Text("Abrir post", color = MaterialTheme.colorScheme.primary)
                             }
                         }
                     }
                 }
             }
+            }
         } else {
-            Text("Comunidades", style = MaterialTheme.typography.headlineSmall)
+            onBack?.let { TextButton(onClick = it) { Text("Volver a Inicio") } }
+            Text("COMUNIDADES", style = MaterialTheme.typography.titleLarge,
+                textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                label = { Text("Buscar comunidad") },
+                placeholder = { Text("Fantasía, misterio...") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
             Button(
                 onClick = viewModel::openCreate,
                 modifier = Modifier.fillMaxWidth(),
@@ -182,7 +241,7 @@ fun CommunityScreen(
                 }
             }
 
-            Text("Explorá comunidades", style = MaterialTheme.typography.titleLarge)
+            Text("Descubrir", style = MaterialTheme.typography.titleMedium)
             when (val current = catalog) {
                 CommunityCatalogState.Idle, CommunityCatalogState.Loading ->
                     BookieLoadingState(message = "Cargando comunidades...")
@@ -194,7 +253,10 @@ fun CommunityScreen(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    items(current.communities, key = Community::id) { community ->
+                    items(current.communities.filter { community ->
+                        query.isBlank() || community.name.contains(query.trim(), ignoreCase = true) ||
+                            community.tags.any { it.contains(query.trim(), ignoreCase = true) }
+                    }, key = Community::id) { community ->
                         CommunityCard(community) { viewModel.selectCommunity(community) }
                     }
                     item {
@@ -214,6 +276,44 @@ fun CommunityScreen(
                 }
             }
         }
+    }
+
+    if (composePost && postsViewModel != null && postDraft != null) {
+        AlertDialog(
+            onDismissRequest = { if (!postDraft.publishing) composePost = false },
+            title = { Text("Crear publicación") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = postDraft.title,
+                        onValueChange = postsViewModel::onTitleChanged,
+                        label = { Text("Título") },
+                        enabled = !postDraft.publishing,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = postDraft.content,
+                        onValueChange = postsViewModel::onContentChanged,
+                        label = { Text("Contenido") },
+                        minLines = 3,
+                        enabled = !postDraft.publishing,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    postDraft.publishError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = postsViewModel::publish,
+                    enabled = !postDraft.publishing,
+                ) { Text(if (postDraft.publishing) "Publicando" else "Publicar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { composePost = false }, enabled = !postDraft.publishing) {
+                    Text("Cancelar")
+                }
+            },
+        )
     }
 }
 

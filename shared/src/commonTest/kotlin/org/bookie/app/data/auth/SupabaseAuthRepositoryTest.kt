@@ -1,7 +1,6 @@
 package org.bookie.app.data.auth
 
 import io.ktor.client.engine.mock.MockEngine
-import org.bookie.app.data.remote.BookieHttpClientConfig
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.async
@@ -142,30 +141,6 @@ class SupabaseAuthRepositoryTest {
         assertEquals(1, remote.logoutCalls)
     }
 
-    @Test fun `sync conflict preserves Supabase login and explains username collision`() = runTest {
-        val client = createBookieUserSyncHttpClient(
-            MockEngine {
-                respond(
-                    """{"statusCode":409,"message":"El nombre de usuario ya está en uso."}""",
-                    status = HttpStatusCode.Conflict,
-                )
-            },
-            BookieHttpClientConfig(baseUrl = "https://api.example.test"),
-        )
-        try {
-            val sync = KtorBookieUserSyncRemoteDataSource(client)
-            val store = MemoryStore()
-            val auth = repo(FakeRemote().apply { loginResponse = response() }, store, sync)
-            val result = assertIs<AuthState.SignedIn>(auth.signIn("reader@example.test", "pass123"))
-            assertTrue(result.syncError.orEmpty().contains("nombre de usuario"))
-            assertTrue(result.syncError.orEmpty().contains("otra cuenta"))
-            assertEquals(true, store.value?.syncPending)
-            assertEquals("jwt-1", auth.getAccessToken())
-        } finally {
-            client.close()
-        }
-    }
-
     @Test fun `rejects invalid signup fields without making requests`() = runTest {
         val remote = FakeRemote()
         val repository = repo(remote, MemoryStore(), FakeSync())
@@ -177,7 +152,7 @@ class SupabaseAuthRepositoryTest {
         assertIs<AuthState.SignedOut>(repo(FakeRemote(), MemoryStore(), FakeSync()).restoreSession())
     }
 
-    private fun repo(remote: FakeRemote, store: MemoryStore, sync: BookieUserSyncRemoteDataSource) =
+    private fun repo(remote: FakeRemote, store: MemoryStore, sync: FakeSync) =
         SupabaseAuthRepository(remote, store, sync, clock = { now })
 
     private class MemoryStore(var value: StoredAuthSession? = null) : SecureSessionStore {

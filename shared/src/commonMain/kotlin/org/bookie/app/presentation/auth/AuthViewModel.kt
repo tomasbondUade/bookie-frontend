@@ -3,11 +3,10 @@ package org.bookie.app.presentation.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.collect
-import org.bookie.app.domain.usecase.SignOutAndClearCache
 import org.bookie.app.domain.model.AuthState
 import org.bookie.app.domain.repository.AuthRepository
 import org.bookie.app.domain.usecase.RestoreAuthSession
@@ -16,7 +15,7 @@ import org.bookie.app.domain.usecase.SignUp
 
 class AuthViewModel(
     private val repository: AuthRepository,
-    private val signOutAndClearCache: SignOutAndClearCache? = null,
+    private val clearAccountCache: suspend (String) -> Unit = {},
 ) : ViewModel() {
     private val restoreSession = RestoreAuthSession(repository)
     private val signIn = SignIn(repository)
@@ -28,30 +27,21 @@ class AuthViewModel(
     private var restoreRequested = false
 
     init {
-        // Respond to token expiry or sign-out from any authenticated client.
+        // Expiry can occur while a protected screen is active.
         viewModelScope.launch {
             repository.state.collect { state ->
                 when (state) {
-                    is AuthState.SignedIn -> {
-                        val current = mutableUiState.value
-                        if (current !is AuthUiState.Submitting && current != AuthUiState.SigningOut) {
-                            mutableUiState.value = state.toUiState()
-                        }
+                    AuthState.Expired -> mutableUiState.value = AuthUiState.Form(
+                        error = "Tu sesión venció. Iniciá sesión nuevamente.",
+                    )
+                    AuthState.SignedOut -> if (mutableUiState.value is AuthUiState.SignedIn) {
+                        mutableUiState.value = AuthUiState.Form()
                     }
-                    AuthState.Expired -> {
-                        mutableUiState.value = AuthUiState.Form(
-                            error = "Tu sesión venció. Iniciá sesión nuevamente.",
-                        )
+                    is AuthState.SignedIn -> if (mutableUiState.value is AuthUiState.SignedIn) {
+                        mutableUiState.value = state.toUiState()
                     }
-                    AuthState.SignedOut -> {
-                        if (mutableUiState.value is AuthUiState.SignedIn) {
-                            mutableUiState.value = AuthUiState.Form()
-                        }
-                    }
-                    is AuthState.Error -> {
-                        if (mutableUiState.value is AuthUiState.SignedIn) {
-                            mutableUiState.value = AuthUiState.Form(error = state.message)
-                        }
+                    is AuthState.Error -> if (mutableUiState.value is AuthUiState.SignedIn) {
+                        mutableUiState.value = AuthUiState.Form(error = state.message)
                     }
                     AuthState.Loading, is AuthState.EmailVerificationRequired -> Unit
                 }
@@ -60,10 +50,8 @@ class AuthViewModel(
     }
 
     fun restore() {
-        if (restoreRequested || restoring ||
-            mutableUiState.value is AuthUiState.SignedIn ||
-            mutableUiState.value is AuthUiState.Submitting ||
-            mutableUiState.value == AuthUiState.SigningOut) return
+        if (restoreRequested || restoring || mutableUiState.value is AuthUiState.Submitting ||
+            mutableUiState.value is AuthUiState.SignedIn || mutableUiState.value == AuthUiState.SigningOut) return
         restoreRequested = true
         restoring = true
         mutableUiState.value = AuthUiState.Restoring
@@ -76,53 +64,6 @@ class AuthViewModel(
                 mutableUiState.value = AuthUiState.Form(error = "No se pudo restaurar la sesión.")
             } finally {
                 restoring = false
-            }
-        }
-    }
-
-    /** Retry pending Bookie synchronization when the backend returns online. */
-    fun retrySync() {
-        val current = mutableUiState.value as? AuthUiState.SignedIn ?: return
-        if (current.syncWarning == null) return
-        mutableUiState.value = current.copy(
-            syncWarning = "Reintentando sincronización con Bookie…",
-        )
-        viewModelScope.launch {
-            try {
-                val result = restoreSession()
-                mutableUiState.value = result.toUiState()
-            } catch (cancel: CancellationException) {
-                throw cancel
-            } catch (_: Exception) {
-                mutableUiState.value = current.copy(
-                    syncWarning = "No se pudo reintentar la sincronización con Bookie.",
-                )
-            }
-        }
-    }
-
-    fun signOut() {
-        val signedIn = mutableUiState.value as? AuthUiState.SignedIn ?: return
-        mutableUiState.value = AuthUiState.SigningOut
-        viewModelScope.launch {
-            try {
-                val result = if (signOutAndClearCache != null) {
-                    signOutAndClearCache.invoke(signedIn.userId)
-                } else {
-                    repository.signOut()
-                }
-                mutableUiState.value = when (result) {
-                    AuthState.SignedOut -> AuthUiState.Form()
-                    is AuthState.Error -> AuthUiState.Form(error = result.message)
-                    else -> AuthUiState.Form(error = "No se pudo finalizar la sesión.")
-                }
-            } catch (cancel: CancellationException) {
-                throw cancel
-            } catch (_: Exception) {
-                // Do not end the session if the previous user's cache cannot be cleared.
-                mutableUiState.value = signedIn.copy(
-                    error = "No se pudo limpiar la biblioteca local. Reintentá cerrar sesión.",
-                )
             }
         }
     }
@@ -179,6 +120,50 @@ class AuthViewModel(
         }
     }
 
+    /** Reattempt a pending user sync without invalidating the Supabase session. */
+    fun retrySync() {
+        val signedIn = mutableUiState.value as? AuthUiState.SignedIn ?: return
+        if (signedIn.syncWarning == null) return
+        mutableUiState.value = signedIn.copy(syncWarning = "Reintentando sincronización con Bookie…")
+        viewModelScope.launch {
+            try {
+                mutableUiState.value = restoreSession().toUiState()
+            } catch (cancel: CancellationException) {
+                throw cancel
+            } catch (_: Exception) {
+                mutableUiState.value = signedIn.copy(
+                    syncWarning = "No se pudo reintentar la sincronización con Bookie.",
+                )
+            }
+        }
+    }
+
+    fun signOut() {
+        val signedIn = mutableUiState.value as? AuthUiState.SignedIn ?: return
+        val userId = signedIn.userId?.takeIf(String::isNotBlank) ?: return
+        mutableUiState.value = AuthUiState.SigningOut
+        viewModelScope.launch {
+            // Do not invalidate the session until this account's cache is cleared.
+            try {
+                clearAccountCache(userId)
+            } catch (cancel: CancellationException) {
+                throw cancel
+            } catch (_: Exception) {
+                mutableUiState.value = signedIn.copy(
+                    signOutError = "No se pudo limpiar la biblioteca local. Reintentá cerrar sesión.",
+                )
+                return@launch
+            }
+            mutableUiState.value = try {
+                repository.signOut().toUiState()
+            } catch (cancel: CancellationException) {
+                throw cancel
+            } catch (_: Exception) {
+                AuthUiState.Form(error = "No se pudo completar el cierre de sesión.")
+            }
+        }
+    }
+
     private fun updateForm(update: AuthUiState.Form.() -> AuthUiState.Form) {
         val current = mutableUiState.value as? AuthUiState.Form ?: return
         mutableUiState.value = current.update()
@@ -190,7 +175,7 @@ class AuthViewModel(
             is AuthState.EmailVerificationRequired -> AuthUiState.EmailVerificationRequired(email)
             is AuthState.Error -> previous.copy(error = message)
             AuthState.Expired -> previous.copy(error = "Tu sesión venció. Iniciá sesión nuevamente.")
-            AuthState.SignedOut -> previous
+            AuthState.SignedOut -> AuthUiState.Form()
             AuthState.Loading -> AuthUiState.Submitting(previous.mode)
         }
 

@@ -24,17 +24,17 @@ object BookieColors {
 
     // LIGHT THEME - Variante clara
 
-    val LightBackground = Color(0xFFF7F4FC)
+    val LightBackground = Color(0xFFFFFFFF)
     val LightSurface = Color(0xFFFFFFFF)
-    val LightSurfaceVariant = Color(0xFFEEE8F8)
+    val LightSurfaceVariant = Color(0xFFE5EAF0)
 
-    val LightPrimary = Color(0xFF6041D8)
-    val LightSecondary = Color(0xFF873BC5)
-    val LightAccent = Color(0xFFA65BEA)
+    val LightPrimary = Color(0xFF2D87D6)
+    val LightSecondary = Color(0xFF4B5E6F)
+    val LightAccent = Color(0xFFC238C8)
 
-    val LightTextPrimary = Color(0xFF211A2D)
-    val LightTextSecondary = Color(0xFF665D73)
+    val LightTextPrimary = Color(0xFF263747)
+    val LightTextSecondary = Color(0xFF5D6F7E)
 
-    val LightOutline = Color(0xFFC9BED7)
+    val LightOutline = Color(0xFFA7B6C3)
     val LightError = Color(0xFFBA1F3D)
 }

@@ -33,6 +33,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -47,6 +48,7 @@ fun LibraryWorkspaceScreen(
     listsViewModel: BookListsViewModel,
     onSignIn: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    onOpenProgress: ((org.bookie.app.domain.model.LibraryBookState) -> Unit)? = null,
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(0) }
     Column(modifier.fillMaxSize()) {
@@ -55,7 +57,7 @@ fun LibraryWorkspaceScreen(
             Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("Mis listas") })
         }
         when (selectedTab) {
-            0 -> LibraryExperienceScreen(libraryViewModel, Modifier.weight(1f))
+            0 -> LibraryExperienceScreen(libraryViewModel, Modifier.weight(1f), onOpenProgress)
             else -> BookListsScreen(listsViewModel, onSignIn, Modifier.weight(1f))
         }
     }
@@ -95,7 +97,12 @@ fun BookListsScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(state.selectedList?.name ?: "Mis listas", style = MaterialTheme.typography.headlineSmall)
+            Text(
+                state.selectedList?.name?.uppercase() ?: "MIS LISTAS",
+                style = MaterialTheme.typography.titleLarge,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f),
+            )
             if (state.selectedList == null) {
                 Button(onClick = { viewModel.dismissAction(); createDialog = true }) { Text("Nueva lista") }
             } else {
@@ -218,7 +225,9 @@ private fun BookListsItems(lists: List<BookList>, viewModel: BookListsViewModel)
                     Text(list.name, style = MaterialTheme.typography.titleMedium)
                     list.description?.takeIf(String::isNotBlank)?.let { Text(it) }
                     Text(if (list.isPublic) "Pública" else "Privada", style = MaterialTheme.typography.bodySmall)
-                    Text("${list.items?.size ?: 0} libros", style = MaterialTheme.typography.bodySmall)
+                    list.items?.let { Text("${it.size} libros", style = MaterialTheme.typography.bodySmall) }
+                    Text("Abrir lista", color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.labelLarge)
                 }
             }
         }

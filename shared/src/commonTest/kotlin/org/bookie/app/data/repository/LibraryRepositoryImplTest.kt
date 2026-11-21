@@ -284,7 +284,7 @@ class LibraryRepositoryImplTest {
             idempotencyKey = "already-used",
         )
 
-        assertEquals(Resource.Error("HTTP 409 en /v1/library/state/state-1/sessions"), result)
+        assertEquals(Resource.Error("El servidor respondió con HTTP 409."), result)
         client.close()
     }
 

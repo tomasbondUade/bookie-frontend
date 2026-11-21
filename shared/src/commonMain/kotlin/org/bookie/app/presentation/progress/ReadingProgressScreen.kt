@@ -30,6 +30,7 @@ import org.bookie.app.domain.model.ReadingSession
 fun ReadingProgressScreen(
     viewModel: ReadingProgressViewModel,
     modifier: Modifier = Modifier,
+    onBack: (() -> Unit)? = null,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -50,7 +51,8 @@ fun ReadingProgressScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Progreso de lectura", style = MaterialTheme.typography.headlineSmall)
+            onBack?.let { TextButton(onClick = it) { Text("Volver a biblioteca") } }
+            Text("PROGRESO DE LECTURA", style = MaterialTheme.typography.titleLarge)
             Text(current.bookTitle, style = MaterialTheme.typography.titleMedium)
             Text(
                 "La página y el porcentaje son independientes: el catálogo no informa el total de páginas.",
