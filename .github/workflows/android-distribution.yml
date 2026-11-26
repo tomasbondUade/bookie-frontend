@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -15,6 +16,7 @@ concurrency:
 jobs:
   build:
     name: Build Android APK
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -86,7 +88,7 @@ jobs:
   distribute:
     name: Distribute APK to Firebase testers
     needs: build
-    if: ${{ vars.GCP_PROJECT_ID != '' && vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && vars.GCP_SERVICE_ACCOUNT != '' && vars.FIREBASE_APP_ID != '' && vars.FIREBASE_TESTER_GROUPS != '' }}
+    if: ${{ github.ref == 'refs/heads/main' && vars.GCP_PROJECT_ID != '' && vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && vars.GCP_SERVICE_ACCOUNT != '' && vars.FIREBASE_APP_ID != '' && vars.FIREBASE_TESTER_GROUPS != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
