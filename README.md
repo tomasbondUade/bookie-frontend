@@ -99,6 +99,9 @@ action additionally requires a logged-in session and an authenticated
 shared client; discovery itself is public. See
 [the mood discovery notes](docs/mood-exploration.md) for details.
 
+To distribute Android test builds automatically after merging to `main`,
+see the [Android distribution guide](docs/android-distribution.md).
+
 ## Contribution conventions
 
 - Keep Kotlin packages under the base package `org.bookie.app`. Use lowercase, dot-separated package names that match the source directory.

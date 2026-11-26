@@ -46,9 +46,9 @@ class BookRepositoryImplTest {
         )
         val repository = BookRepositoryImpl(KtorBookSearchRemoteDataSource(client))
 
-        val result = repository.searchBooks("  Dune  ")
+        val result = repository.searchBooks("  Dune  ", page = 2)
 
-        assertEquals("https://api.example.test/v1/books/search?q=Dune", requestUrl)
+        assertEquals("https://api.example.test/v1/books/search?q=Dune&page=2", requestUrl)
         assertEquals(null, authorization)
         assertEquals(
             Resource.Success(
