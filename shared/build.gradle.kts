@@ -114,6 +114,10 @@ sqldelight {
     }
 }
 
+compose.resources {
+    packageOfResClass = "org.bookie.app.resources"
+}
+
 dependencies {
     androidRuntimeClasspath(libs.compose.uiTooling)
 }
