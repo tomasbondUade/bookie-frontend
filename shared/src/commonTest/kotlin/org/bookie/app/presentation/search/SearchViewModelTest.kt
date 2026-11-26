@@ -16,6 +16,8 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SearchViewModelTest {
@@ -32,7 +34,7 @@ class SearchViewModelTest {
     @Test
     fun searchReturnsBooksAndSupportsOpeningAndClosingDetail() = runTest {
         val book = sampleBook()
-        val repository = FakeBookRepository { Resource.Success(listOf(book)) }
+        val repository = FakeBookRepository { _, _ -> Resource.Success(listOf(book)) }
         val viewModel = SearchViewModel(SearchBooks(repository))
 
         viewModel.onQueryChanged("  dune  ")
@@ -52,7 +54,7 @@ class SearchViewModelTest {
     @Test
     fun searchDistinguishesEmptyAndErrorResults() = runTest {
         val emptyViewModel = SearchViewModel(
-            SearchBooks(FakeBookRepository { Resource.Success(emptyList()) }),
+            SearchBooks(FakeBookRepository { _, _ -> Resource.Success(emptyList()) }),
         )
         emptyViewModel.onQueryChanged("unknown")
         emptyViewModel.search()
@@ -60,7 +62,7 @@ class SearchViewModelTest {
         assertEquals(SearchUiState.Empty("unknown"), emptyViewModel.uiState.value)
 
         val errorViewModel = SearchViewModel(
-            SearchBooks(FakeBookRepository { Resource.Error("Network unavailable") }),
+            SearchBooks(FakeBookRepository { _, _ -> Resource.Error("Network unavailable") }),
         )
         errorViewModel.onQueryChanged("dune")
         errorViewModel.search()
@@ -70,7 +72,7 @@ class SearchViewModelTest {
 
     @Test
     fun blankQueryDoesNotCallRepository() = runTest {
-        val repository = FakeBookRepository { Resource.Success(emptyList()) }
+        val repository = FakeBookRepository { _, _ -> Resource.Success(emptyList()) }
         val viewModel = SearchViewModel(SearchBooks(repository))
 
         viewModel.onQueryChanged("   ")
@@ -84,7 +86,7 @@ class SearchViewModelTest {
     fun olderResponseDoesNotReplaceTheLatestSearch() = runTest {
         val olderResponse = CompletableDeferred<Resource<List<Book>>>()
         val latestBook = sampleBook().copy(id = "latest", title = "Latest result")
-        val repository = FakeBookRepository { query ->
+        val repository = FakeBookRepository { query, _ ->
             if (query == "older") olderResponse.await() else Resource.Success(listOf(latestBook))
         }
         val viewModel = SearchViewModel(SearchBooks(repository))
@@ -104,6 +106,65 @@ class SearchViewModelTest {
         assertEquals(SearchUiState.Success(listOf(latestBook), "latest"), viewModel.uiState.value)
     }
 
+    @Test
+    fun loadMoreAppendsUniqueBooksAndStopsWhenTheNextPageIsShort() = runTest {
+        val firstPage = (1..10).map { sampleBook().copy(id = "book-$it", title = "Book $it") }
+        val nextBook = sampleBook().copy(id = "book-11", title = "Book 11")
+        val repository = FakeBookRepository { _, page ->
+            if (page == 1) Resource.Success(firstPage)
+            else Resource.Success(listOf(firstPage.last(), nextBook))
+        }
+        val viewModel = SearchViewModel(SearchBooks(repository))
+
+        viewModel.onQueryChanged("fantasy")
+        viewModel.search()
+        runCurrent()
+        viewModel.loadMore()
+        runCurrent()
+
+        val state = viewModel.uiState.value as SearchUiState.Success
+        assertEquals(11, state.books.size)
+        assertEquals("book-11", state.books.last().id)
+        assertEquals(2, state.page)
+        assertFalse(state.hasMore)
+        assertEquals(listOf(1, 2), repository.receivedPages)
+    }
+
+    @Test
+    fun loadMoreCanBeRetriedAfterAnError() = runTest {
+        val firstPage = (1..10).map { sampleBook().copy(id = "book-$it") }
+        var failFirstAttempt = true
+        val repository = FakeBookRepository { _, page ->
+            when {
+                page == 1 -> Resource.Success(firstPage)
+                failFirstAttempt -> {
+                    failFirstAttempt = false
+                    Resource.Error("Network unavailable")
+                }
+                else -> Resource.Success(listOf(sampleBook().copy(id = "book-11")))
+            }
+        }
+        val viewModel = SearchViewModel(SearchBooks(repository))
+
+        viewModel.onQueryChanged("fantasy")
+        viewModel.search()
+        runCurrent()
+        viewModel.loadMore()
+        runCurrent()
+
+        val failedState = viewModel.uiState.value as SearchUiState.Success
+        assertEquals("Network unavailable", failedState.loadMoreError)
+        assertTrue(failedState.hasMore)
+
+        viewModel.loadMore()
+        runCurrent()
+
+        val retriedState = viewModel.uiState.value as SearchUiState.Success
+        assertEquals(11, retriedState.books.size)
+        assertEquals(2, retriedState.page)
+        assertFalse(retriedState.hasMore)
+    }
+
     private fun sampleBook() = Book(
         id = "book-1",
         googleBookId = "google-1",
@@ -118,17 +179,19 @@ class SearchViewModelTest {
     )
 
     private class FakeBookRepository(
-        private val search: suspend (String) -> Resource<List<Book>>,
+        private val search: suspend (String, Int) -> Resource<List<Book>>,
     ) : BookRepository {
         var receivedQuery: String? = null
             private set
+        val receivedPages = mutableListOf<Int>()
         var calls: Int = 0
             private set
 
-        override suspend fun searchBooks(query: String): Resource<List<Book>> {
+        override suspend fun searchBooks(query: String, page: Int): Resource<List<Book>> {
             calls++
             receivedQuery = query
-            return search(query)
+            receivedPages += page
+            return search(query, page)
         }
     }
 }

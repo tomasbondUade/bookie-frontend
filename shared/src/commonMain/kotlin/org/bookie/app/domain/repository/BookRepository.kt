@@ -4,5 +4,5 @@ import org.bookie.app.domain.model.Book
 import org.bookie.app.domain.result.Resource
 
 interface BookRepository {
-    suspend fun searchBooks(query: String): Resource<List<Book>>
+    suspend fun searchBooks(query: String, page: Int = 1): Resource<List<Book>>
 }

@@ -268,7 +268,7 @@ class ReadingPreferencesViewModelTest {
         var lastQuery: String? = null
             private set
 
-        override suspend fun searchBooks(query: String): Resource<List<Book>> {
+        override suspend fun searchBooks(query: String, page: Int): Resource<List<Book>> {
             lastQuery = query
             return result
         }

@@ -168,7 +168,7 @@ private class FakeBookListsRepository : BookListsRepository {
 private class FakeBookRepository : BookRepository {
     var results = emptyList<Book>()
 
-    override suspend fun searchBooks(query: String): Resource<List<Book>> = Resource.Success(results)
+    override suspend fun searchBooks(query: String, page: Int): Resource<List<Book>> = Resource.Success(results)
 }
 
 private fun sampleList(id: String, name: String) = BookList(
