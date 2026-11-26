@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -19,6 +18,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -32,13 +32,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.bookie.app.domain.model.LibraryBookState
 import org.bookie.app.domain.model.LibraryStateInput
 import org.bookie.app.domain.model.LibraryStatus
 import org.bookie.app.presentation.components.BookCover
+import org.bookie.app.presentation.components.LibraryDatePickerDialog
+import org.bookie.app.presentation.components.LibraryNumberPickerDialog
 
 @Composable
 fun LibraryExperienceScreen(
@@ -259,14 +260,16 @@ private fun LibraryEntryEditorDialog(
     onDismiss: () -> Unit,
 ) {
     var status by remember(entry.id) { mutableStateOf(entry.status) }
-    var ratingText by remember(entry.id) { mutableStateOf(entry.rating?.toString().orEmpty()) }
+    var rating by remember(entry.id) { mutableStateOf(entry.rating) }
     var comment by remember(entry.id) { mutableStateOf(entry.comment.orEmpty()) }
     var privateNotes by remember(entry.id) { mutableStateOf(entry.privateNotes.orEmpty()) }
     var startedAt by remember(entry.id) { mutableStateOf(entry.startedAt.orEmpty()) }
     var finishedAt by remember(entry.id) { mutableStateOf(entry.finishedAt.orEmpty()) }
+    var showRatingPicker by remember(entry.id) { mutableStateOf(false) }
+    var showStartedAtPicker by remember(entry.id) { mutableStateOf(false) }
+    var showFinishedAtPicker by remember(entry.id) { mutableStateOf(false) }
     var isFavorite by remember(entry.id) { mutableStateOf(entry.isFavorite) }
     var isAbandoned by remember(entry.id) { mutableStateOf(entry.isAbandoned) }
-    var error by remember(entry.id) { mutableStateOf<String?>(null) }
     var saveStarted by remember(entry.id) { mutableStateOf(false) }
     val screenState by viewModel.uiState.collectAsStateWithLifecycle()
     val action = screenState.action
@@ -296,14 +299,10 @@ private fun LibraryEntryEditorDialog(
                         )
                     }
                 }
-                OutlinedTextField(
-                    value = ratingText,
-                    onValueChange = { ratingText = it.filter(Char::isDigit).take(1) },
-                    label = { Text("Calificación (1 a 5)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
+                OutlinedButton(
+                    onClick = { showRatingPicker = true },
                     modifier = Modifier.fillMaxWidth(),
-                )
+                ) { Text(rating?.let { "Calificación: $it de 5" } ?: "Elegir calificación") }
                 OutlinedTextField(
                     value = comment,
                     onValueChange = { comment = it },
@@ -318,25 +317,16 @@ private fun LibraryEntryEditorDialog(
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2,
                 )
-                OutlinedTextField(
-                    value = startedAt,
-                    onValueChange = { startedAt = it },
-                    label = { Text("Inicio (fecha ISO 8601)") },
-                    placeholder = { Text("2026-11-19T10:00:00Z") },
-                    singleLine = true,
+                OutlinedButton(
+                    onClick = { showStartedAtPicker = true },
                     modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = finishedAt,
-                    onValueChange = { finishedAt = it },
-                    label = { Text("Finalización (fecha ISO 8601)") },
-                    placeholder = { Text("2026-11-19T10:00:00Z") },
-                    singleLine = true,
+                ) { Text(startedAt.dateLabel("Elegir fecha de inicio")) }
+                OutlinedButton(
+                    onClick = { showFinishedAtPicker = true },
                     modifier = Modifier.fillMaxWidth(),
-                )
+                ) { Text(finishedAt.dateLabel("Elegir fecha de finalización")) }
                 ToggleRow("Favorito", isFavorite) { isFavorite = it }
                 ToggleRow("Abandonado", isAbandoned) { isAbandoned = it }
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 if (saveStarted && action is LibraryActionState.Failed) {
                     Text(action.message, color = MaterialTheme.colorScheme.error)
                 }
@@ -344,18 +334,6 @@ private fun LibraryEntryEditorDialog(
         },
         confirmButton = {
             Button(onClick = {
-                val rating = ratingText.toIntOrNull()
-                if (ratingText.isNotBlank() && (rating == null || rating !in 1..5)) {
-                    error = "La calificación debe estar entre 1 y 5."
-                    return@Button
-                }
-                if (startedAt.isNotBlank() && !startedAt.isIsoDateTime() ||
-                    finishedAt.isNotBlank() && !finishedAt.isIsoDateTime()
-                ) {
-                    error = "Ingresá las fechas en formato ISO 8601."
-                    return@Button
-                }
-                error = null
                 saveStarted = true
                 viewModel.save(
                     LibraryStateInput(
@@ -378,6 +356,34 @@ private fun LibraryEntryEditorDialog(
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
     )
+
+    if (showRatingPicker) {
+        LibraryNumberPickerDialog(
+            title = "Calificación (1 a 5)",
+            initialValue = rating,
+            minValue = 1,
+            maxValue = 5,
+            allowEmpty = true,
+            onDismiss = { showRatingPicker = false },
+            onConfirm = { rating = it; showRatingPicker = false },
+        )
+    }
+    if (showStartedAtPicker) {
+        LibraryDatePickerDialog(
+            title = "Fecha de inicio",
+            initialValue = startedAt,
+            onDismiss = { showStartedAtPicker = false },
+            onConfirm = { startedAt = it.orEmpty(); showStartedAtPicker = false },
+        )
+    }
+    if (showFinishedAtPicker) {
+        LibraryDatePickerDialog(
+            title = "Fecha de finalización",
+            initialValue = finishedAt,
+            onDismiss = { showFinishedAtPicker = false },
+            onConfirm = { finishedAt = it.orEmpty(); showFinishedAtPicker = false },
+        )
+    }
 }
 
 @Composable
@@ -394,5 +400,5 @@ private fun LibraryStatus.label(): String = when (this) {
     LibraryStatus.READ -> "Leído"
 }
 
-private fun String.isIsoDateTime(): Boolean =
-    Regex("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:?\\d{2})$").matches(this)
+private fun String.dateLabel(emptyLabel: String): String =
+    takeIf(String::isNotBlank)?.take(10) ?: emptyLabel
