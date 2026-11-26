@@ -5,6 +5,8 @@ import androidx.compose.animation.core.tween
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -257,7 +259,7 @@ private fun MainAppContent(
             },
     ) { contentPadding ->
         val contentModifier =
-                Modifier.fillMaxSize().padding(contentPadding)
+                Modifier.fillMaxSize().padding(contentPadding).consumeWindowInsets(contentPadding).imePadding()
 
         when {
                 surface == AppSurface.AUTH -> {

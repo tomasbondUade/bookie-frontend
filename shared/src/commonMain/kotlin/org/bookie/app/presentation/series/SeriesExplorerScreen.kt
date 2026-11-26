@@ -10,8 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import org.bookie.app.presentation.components.BookieActionButton as Button
+import org.bookie.app.presentation.components.BookiePanelCard as Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -20,6 +20,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import org.bookie.app.presentation.components.BookiePageHeading
+import org.bookie.app.presentation.components.BookieTabs
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -27,7 +29,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.bookie.app.domain.model.SeriesCatalogEntry
@@ -47,8 +48,7 @@ fun SeriesExplorerScreen(
         modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("SAGAS Y SERIES", style = MaterialTheme.typography.titleLarge,
-            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        BookiePageHeading("Sagas y universos", "Tu próxima aventura continúa acá.")
         if (state.selectedUniverseId != null) {
             TextButton(onClick = viewModel::clearUniverseSelection) { Text("Volver a universos") }
             UniverseDetailContent(
@@ -58,16 +58,9 @@ fun SeriesExplorerScreen(
                 onOpenSeries = onOpenSeries,
             )
         } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(
-                    onClick = { viewModel.selectTab(SeriesExplorerTab.SERIES) },
-                    enabled = state.tab != SeriesExplorerTab.SERIES,
-                ) { Text("Sagas") }
-                TextButton(
-                    onClick = { viewModel.selectTab(SeriesExplorerTab.UNIVERSES) },
-                    enabled = state.tab != SeriesExplorerTab.UNIVERSES,
-                ) { Text("Universos") }
-            }
+            BookieTabs(listOf("Sagas", "Universos"),
+                if (state.tab == SeriesExplorerTab.SERIES) 0 else 1,
+                { viewModel.selectTab(if (it == 0) SeriesExplorerTab.SERIES else SeriesExplorerTab.UNIVERSES) })
             when (state.tab) {
                 SeriesExplorerTab.SERIES -> {
                     UniverseFilter(

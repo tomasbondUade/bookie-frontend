@@ -8,18 +8,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
+import org.bookie.app.presentation.components.BookieActionButton as Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import org.bookie.app.presentation.components.BookiePageHeading
+import org.bookie.app.presentation.components.BookieFeatureBanner
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.bookie.app.domain.model.ReadingStats
+import org.bookie.app.presentation.components.*
 
 @Composable
 fun ReadingStatsScreen(
@@ -44,10 +46,8 @@ fun ReadingStatsScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text("PERFIL", style = MaterialTheme.typography.titleLarge,
-            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-        Text(email ?: "Tu perfil lector", style = MaterialTheme.typography.titleMedium,
-            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        BookiePageHeading("Mi perfil", "Tu historia también se escribe leyendo.")
+        BookieProfileHeader(email)
         onEditPreferences?.let { onEdit ->
             Button(onClick = onEdit, modifier = Modifier.fillMaxWidth()) { Text("Editar preferencias") }
         }
@@ -55,10 +55,6 @@ fun ReadingStatsScreen(
             Button(onClick = action, modifier = Modifier.fillMaxWidth()) { Text("Ver mi biblioteca") }
         }
         Text("Mi actividad lectora", style = MaterialTheme.typography.titleMedium)
-        onSignOut?.let { signOut ->
-            androidx.compose.material3.TextButton(onClick = signOut) { Text("Cerrar sesión") }
-        }
-
         when (val currentState = state) {
             ReadingStatsUiState.Idle,
             ReadingStatsUiState.Loading -> Row(
@@ -68,10 +64,8 @@ fun ReadingStatsScreen(
                 Text("Cargando estadísticas…")
             }
 
-            ReadingStatsUiState.Empty -> Text(
-                "Todavía no hay estadísticas. Marcá un libro como leído para empezar.",
-                style = MaterialTheme.typography.bodyLarge,
-            )
+            ReadingStatsUiState.Empty -> BookieEmptyState(
+                message = "Tu historia lectora empieza acá. Marcá un libro como leído para ver tu actividad.")
 
             is ReadingStatsUiState.Error -> Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -95,17 +89,25 @@ fun ReadingStatsScreen(
 
             is ReadingStatsUiState.Success -> ReadingStatsContent(currentState.stats)
         }
+        onSignOut?.let { signOut ->
+            androidx.compose.material3.TextButton(onClick = signOut) { Text("Cerrar sesión") }
+        }
     }
 }
 
 @Composable
 private fun ReadingStatsContent(stats: ReadingStats) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        BookieMetric(stats.booksReadByYear.sumOf { it.count }.toString(), "Leídos", Modifier.weight(1f))
+        BookieMetric(if (stats.averageRating.count > 0) "${kotlin.math.round(stats.averageRating.average * 10) / 10} ★" else "—", "Promedio", Modifier.weight(1f))
+        BookieMetric(stats.readingStreak.currentStreak.toString(), "Días de racha", Modifier.weight(1f))
+    }
     StatsSection("Géneros más leídos") {
         if (stats.mostReadGenres.isEmpty()) {
             NoStatsData()
         } else {
             stats.mostReadGenres.forEach { item ->
-                Text("${item.genre} · ${item.count}")
+                StatsBar(item.genre, item.count, stats.mostReadGenres.maxOf { it.count })
             }
         }
     }
@@ -136,7 +138,7 @@ private fun ReadingStatsContent(stats: ReadingStats) {
         } else {
             stats.booksReadByMonth.forEach { item ->
                 val month = item.month.toString().padStart(2, '0')
-                Text("$month/${item.year} · ${item.count}")
+                StatsBar("$month/${item.year}", item.count, stats.booksReadByMonth.maxOf { it.count })
             }
         }
     }
@@ -163,16 +165,44 @@ private fun StatsSection(
     title: String,
     content: @Composable () -> Unit,
 ) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Text(title, style = MaterialTheme.typography.titleMedium)
-        content()
+    BookiePanelCard(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            content()
+        }
     }
 }
 
 @Composable
 private fun NoStatsData() {
-    Text("Sin datos todavía.", style = MaterialTheme.typography.bodyMedium)
+    Text("Sin datos todavía.", style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+@Composable
+private fun BookieProfileHeader(email: String?) {
+    BookiePanelCard(Modifier.fillMaxWidth()) {
+        BookieFeatureBanner("Un mundo entre páginas", "Lee. Conecta. Recomienda.")
+        Row(Modifier.padding(18.dp), horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            BookieAvatar(email ?: "Bookie")
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(email?.substringBefore('@') ?: "Tu perfil lector", style = MaterialTheme.typography.titleLarge)
+                Text(email ?: "Tu espacio en Bookie", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatsBar(label: String, count: Int, max: Int) {
+    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+            Text("$count", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+        }
+        androidx.compose.material3.LinearProgressIndicator(progress = { count.toFloat() / max.coerceAtLeast(1) },
+            modifier = Modifier.fillMaxWidth())
+    }
 }

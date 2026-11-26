@@ -2,6 +2,9 @@
 package org.bookie.app.theme
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -15,6 +18,12 @@ private val BookieDarkColorScheme = darkColorScheme(
 
     secondary = BookieColors.DarkSecondary,
     onSecondary = BookieColors.DarkBackground,
+    secondaryContainer = BookieColors.DarkSurfaceVariant,
+    onSecondaryContainer = BookieColors.DarkTextPrimary,
+    tertiary = BookieColors.DarkAccent,
+    tertiaryContainer = BookieColors.DarkSurfaceVariant,
+    onTertiaryContainer = BookieColors.DarkTextPrimary,
+    outlineVariant = BookieColors.DarkOutline.copy(alpha = .35f),
 
     primaryContainer = BookieColors.DarkSurfaceVariant,
     onPrimaryContainer = BookieColors.DarkTextPrimary,
@@ -80,6 +89,11 @@ fun BookieTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = BookieTypography,
+        shapes = Shapes(
+            extraSmall = RoundedCornerShape(10.dp), small = RoundedCornerShape(16.dp),
+            medium = RoundedCornerShape(20.dp), large = RoundedCornerShape(24.dp),
+            extraLarge = RoundedCornerShape(28.dp),
+        ),
         content = content
     )
 }

@@ -4,19 +4,21 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import org.bookie.app.presentation.components.BookieActionButton as Button
+import org.bookie.app.presentation.components.BookiePanelCard as Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import org.bookie.app.presentation.components.BookiePageHeading
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,7 +51,7 @@ fun LibraryScreen(
         modifier = modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text("Mi biblioteca", style = MaterialTheme.typography.headlineSmall)
+        BookiePageHeading("Mi biblioteca", "Un lugar para tus próximas historias.")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = onExploreBooks) { Text("Explorar libros") }
             TextButton(onClick = viewModel::refresh, enabled = !writing) {
@@ -124,7 +126,7 @@ fun LibraryNotConnectedScreen(
         modifier = modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("Mi biblioteca", style = MaterialTheme.typography.headlineSmall)
+        BookiePageHeading("Mi biblioteca", "Un lugar para tus próximas historias.")
         Text(if (onSignIn != null) {
             "Iniciá sesión para consultar tus libros."
         } else {
@@ -203,7 +205,10 @@ private fun LibraryBookCard(
             modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(entry.book.title, style = MaterialTheme.typography.titleMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                org.bookie.app.presentation.components.BookCover(entry.book, Modifier.size(60.dp, 86.dp))
+                Text(entry.book.title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            }
             if (entry.book.authors.isNotEmpty()) {
                 Text(entry.book.authors.joinToString(", "), style = MaterialTheme.typography.bodySmall)
             }

@@ -2,26 +2,26 @@ package org.bookie.app.presentation.library
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import org.bookie.app.presentation.components.BookieActionButton as Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import org.bookie.app.presentation.components.BookiePageHeading
+import org.bookie.app.presentation.components.BookieInputShape
+import org.bookie.app.presentation.components.bookieInputColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -31,13 +31,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.bookie.app.domain.model.LibraryBookState
 import org.bookie.app.domain.model.LibraryStateInput
 import org.bookie.app.domain.model.LibraryStatus
-import org.bookie.app.presentation.components.BookCover
 import org.bookie.app.presentation.components.LibraryDatePickerDialog
 import org.bookie.app.presentation.components.LibraryNumberPickerDialog
 
@@ -61,10 +59,11 @@ fun LibraryExperienceScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("BIBLIOTECA", style = MaterialTheme.typography.titleLarge,
-            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        BookiePageHeading("Mi biblioteca", "Cada libro, una historia con vos.")
         LibraryFilters(state.statusFilter, state.favoritesOnly, viewModel)
         OutlinedTextField(
+            shape = BookieInputShape,
+            colors = bookieInputColors(),
             value = query,
             onValueChange = { query = it },
             placeholder = { Text("Buscar en mi biblioteca") },
@@ -91,7 +90,10 @@ fun LibraryExperienceScreen(
             }
 
             is LibraryContentState.Empty -> {
-                Text(content.warning ?: if (content.stale) "No se pudo actualizar la biblioteca." else "Todavía no guardaste libros.")
+                org.bookie.app.presentation.components.BookieEmptyState(message = content.warning
+                    ?: if (content.stale) "No se pudo actualizar la biblioteca."
+                    else if (state.statusFilter != null || state.favoritesOnly) "Todavía no hay libros en este filtro."
+                    else "Tu próxima historia empieza acá. Guardá un libro para armar tu biblioteca.")
                 Button(onClick = viewModel::retry) { Text("Actualizar") }
             }
 
@@ -197,50 +199,18 @@ private fun LibraryEntry(
     onOpenProgress: ((LibraryBookState) -> Unit)?,
 ) {
     var editing by remember(entry.id) { mutableStateOf(false) }
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            BookCover(entry.book, Modifier.size(width = 72.dp, height = 96.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(entry.book.title, style = MaterialTheme.typography.titleMedium)
-                Text(entry.book.authors.joinToString().ifBlank { "Autor desconocido" })
-                Text(entry.status.label(), style = MaterialTheme.typography.labelMedium)
-            }
-        }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(entry.status.label())
-            entry.rating?.let { Text("$it/5") }
-            if (entry.isFavorite) Text("Favorito")
-            if (entry.isAbandoned) Text("Abandonado")
-        }
-        entry.progressPercentage?.let {
-            Text("Progreso: $it%")
-            LinearProgressIndicator(progress = { it / 100f }, modifier = Modifier.fillMaxWidth())
-        }
-        entry.currentPage?.let { Text("Página: $it") }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(
-                onClick = {
-                    viewModel.save(
-                        LibraryStateInput(entry.bookId, isFavorite = !entry.isFavorite),
-                        if (entry.isFavorite) "Libro quitado de favoritos." else "Libro agregado a favoritos.",
-                    )
-                },
-            ) { Text(if (entry.isFavorite) "Quitar favorito" else "Marcar favorito") }
-            TextButton(onClick = {
-                viewModel.dismissAction()
-                editing = true
-            }) { Text("Editar") }
-            if (entry.status == LibraryStatus.READING) {
-                onOpenProgress?.let { open ->
-                    TextButton(onClick = { open(entry) }) { Text("Registrar progreso") }
-                }
-            }
-            TextButton(onClick = { viewModel.requestRemoval(entry.id) }) { Text("Quitar de biblioteca") }
-        }
-    }
+    org.bookie.app.presentation.components.BookieLibraryEntryCard(
+        entry = entry,
+        onFavorite = {
+            viewModel.save(
+                LibraryStateInput(entry.bookId, isFavorite = !entry.isFavorite),
+                if (entry.isFavorite) "Libro quitado de favoritos." else "Libro agregado a favoritos.",
+            )
+        },
+        onEdit = { viewModel.dismissAction(); editing = true },
+        onRemove = { viewModel.requestRemoval(entry.id) },
+        onOpenProgress = onOpenProgress?.let { open -> { open(entry) } },
+    )
 
     if (editing) {
         LibraryEntryEditorDialog(entry, viewModel, onDismiss = { editing = false })
@@ -304,6 +274,8 @@ private fun LibraryEntryEditorDialog(
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(rating?.let { "Calificación: $it de 5" } ?: "Elegir calificación") }
                 OutlinedTextField(
+                    shape = BookieInputShape,
+                    colors = bookieInputColors(),
                     value = comment,
                     onValueChange = { comment = it },
                     label = { Text("Comentario") },
@@ -311,6 +283,8 @@ private fun LibraryEntryEditorDialog(
                     minLines = 2,
                 )
                 OutlinedTextField(
+                    shape = BookieInputShape,
+                    colors = bookieInputColors(),
                     value = privateNotes,
                     onValueChange = { privateNotes = it },
                     label = { Text("Notas privadas") },

@@ -1,11 +1,12 @@
 package org.bookie.app.presentation.search
 
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.SecondaryTabRow
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import org.bookie.app.presentation.components.BookieTabs
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -38,11 +39,8 @@ fun DiscoverScreen(
 
     Column(modifier.fillMaxSize()) {
         if (!detailOpen) {
-            SecondaryTabRow(selectedTabIndex = tab) {
-                listOf("Buscar", "Para vos", "Por ánimo").forEachIndexed { index, label ->
-                    Tab(selected = tab == index, onClick = { tab = index }, text = { Text(label) })
-                }
-            }
+            BookieTabs(listOf("Buscar", "Para vos", "Por ánimo"), tab, { tab = it },
+                Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
         }
         when (tab) {
             0 -> BookSearchScreen(

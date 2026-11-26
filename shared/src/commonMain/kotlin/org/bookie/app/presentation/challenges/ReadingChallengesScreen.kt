@@ -3,18 +3,18 @@ package org.bookie.app.presentation.challenges
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import org.bookie.app.presentation.components.BookieActionButton as Button
+import org.bookie.app.presentation.components.BookiePanelCard as Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import org.bookie.app.presentation.components.BookiePageHeading
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,14 +41,13 @@ fun ReadingChallengesScreen(
         modifier = modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             TextButton(onClick = onBack) { Text("Volver") }
-            Text("Retos de lectura", style = MaterialTheme.typography.headlineSmall)
-            Spacer(Modifier.weight(1f))
             if (state !is ReadingChallengesUiState.Loading) {
                 TextButton(onClick = viewModel::retry) { Text("Actualizar") }
             }
         }
+        BookiePageHeading("Retos de lectura", "Pequeñas metas, grandes historias.")
 
         when (val current = state) {
             ReadingChallengesUiState.Idle, ReadingChallengesUiState.Loading ->
@@ -131,6 +130,9 @@ private fun ReadingChallengeCard(
                 Text("Ya participás", color = MaterialTheme.colorScheme.primary)
                 progress?.let {
                     Text("Progreso: ${it.completed} de ${it.target} · ${it.percentage.coerceIn(0.0, 100.0).toInt()}%")
+                    androidx.compose.material3.LinearProgressIndicator(
+                        progress = { it.percentage.coerceIn(0.0, 100.0).toFloat() / 100f },
+                        modifier = Modifier.fillMaxWidth())
                 }
             } else {
                 Button(
