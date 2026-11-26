@@ -13,18 +13,21 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.bookie.app.domain.model.ReadingSession
+import org.bookie.app.presentation.components.LibraryNumberPickerDialog
 
 @Composable
 fun ReadingProgressScreen(
@@ -33,6 +36,8 @@ fun ReadingProgressScreen(
     onBack: (() -> Unit)? = null,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var showPagePicker by remember { mutableStateOf(false) }
+    var showPercentagePicker by remember { mutableStateOf(false) }
 
     LaunchedEffect(viewModel) {
         viewModel.loadSessions()
@@ -58,28 +63,22 @@ fun ReadingProgressScreen(
                 "La página y el porcentaje son independientes: el catálogo no informa el total de páginas.",
                 style = MaterialTheme.typography.bodySmall,
             )
-            OutlinedTextField(
-                value = current.currentPageInput,
-                onValueChange = viewModel::onCurrentPageChanged,
-                label = { Text("Página actual") },
+            OutlinedButton(
+                onClick = { showPagePicker = true },
                 modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
-                isError = current.currentPageError != null,
-                supportingText = current.currentPageError?.let { message -> { Text(message) } },
                 enabled = !current.isBusy,
-            )
-            OutlinedTextField(
-                value = current.percentageInput,
-                onValueChange = viewModel::onPercentageChanged,
-                label = { Text("Porcentaje de lectura (0–100)") },
+            ) {
+                Text(current.currentPageInput.takeIf(String::isNotBlank)?.let { "Página actual: $it" } ?: "Elegir página")
+            }
+            current.currentPageError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            OutlinedButton(
+                onClick = { showPercentagePicker = true },
                 modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
-                isError = current.percentageError != null,
-                supportingText = current.percentageError?.let { message -> { Text(message) } },
                 enabled = !current.isBusy,
-            )
+            ) {
+                Text(current.percentageInput.takeIf(String::isNotBlank)?.let { "Progreso: $it%" } ?: "Elegir porcentaje")
+            }
+            current.percentageError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
             Text("Guardar estado actual", style = MaterialTheme.typography.titleMedium)
             OutlinedTextField(
@@ -154,6 +153,36 @@ fun ReadingProgressScreen(
             }
             current.sessions.forEach { session -> SessionCard(session) }
         }
+    }
+
+    val progress = state as? ReadingProgressUiState.Content
+    if (progress != null && showPagePicker) {
+        LibraryNumberPickerDialog(
+            title = "Página actual",
+            initialValue = progress.currentPageInput.toIntOrNull(),
+            minValue = 0,
+            maxValue = 1_000_000,
+            allowEmpty = true,
+            onDismiss = { showPagePicker = false },
+            onConfirm = {
+                viewModel.onCurrentPageChanged(it?.toString().orEmpty())
+                showPagePicker = false
+            },
+        )
+    }
+    if (progress != null && showPercentagePicker) {
+        LibraryNumberPickerDialog(
+            title = "Porcentaje de lectura",
+            initialValue = progress.percentageInput.toIntOrNull(),
+            minValue = 0,
+            maxValue = 100,
+            allowEmpty = true,
+            onDismiss = { showPercentagePicker = false },
+            onConfirm = {
+                viewModel.onPercentageChanged(it?.toString().orEmpty())
+                showPercentagePicker = false
+            },
+        )
     }
 }
 
