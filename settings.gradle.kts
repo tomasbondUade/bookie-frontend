@@ -29,3 +29,8 @@ dependencyResolutionManagement {
 
 include(":androidApp")
 include(":shared")
+
+// The offline demo is opt-in and never participates in production builds.
+if (providers.gradleProperty("bookieDemo").orNull == "true") {
+    include(":demoApp")
+}
