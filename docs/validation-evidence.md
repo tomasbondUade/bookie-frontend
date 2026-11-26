@@ -43,7 +43,7 @@ La versión validada incluía navegación Atrás de Android. Ese comportamiento 
 | Accesibilidad TalkBack / VoiceOver | NO EJECUTADO | Requiere interactuar con dispositivos o simuladores |
 | Integración completa contra el backend publicado | NO VERIFICADA aquí | Falta registrar una sesión reproducible con cuentas y datos de prueba |
 | Fallback de búsqueda Open Library | INTEGRADO; producción no verificada aquí | Backend PR [#160](https://github.com/tomasbondUade/bookie-backend/pull/160) ya fue integrado; falta evidencia de una prueba en el entorno publicado |
-| Restauración y cambio de cuenta de #63 | PENDIENTE | Frontend PR [#123](https://github.com/tomasbondUade/bookie-frontend/pull/123) sigue abierto y requiere actualizarse contra el `main` actual, volver a validar checks/aprobación y repetir el smoke test A → cerrar sesión → B, incluyendo Descubrir |
+| Restauración y cambio de cuenta de #63 | PENDIENTE | Frontend PR [#123](https://github.com/tomasbondUade/bookie-frontend/pull/123) ya se sincronizó con `main` en el commit `d7bba42`; la aprobación sigue vigente y los checks del nuevo commit están corriendo. Falta repetir el smoke test A → cerrar sesión → B, incluyendo Descubrir |
 
 No hay evidencia para marcar como PASS los recorridos manuales de registro/cierre de sesión, aislamiento entre dos cuentas, escritura en API ni los demás escenarios de [la matriz](end-to-end-validation.md).
 
