@@ -42,13 +42,13 @@ class SearchViewModelTest {
         runCurrent()
 
         assertEquals("dune", repository.receivedQuery)
-        assertEquals(SearchUiState.Success(listOf(book), "dune"), viewModel.uiState.value)
+        assertEquals(SearchUiState.Success(listOf(book), "dune", hasMore = true), viewModel.uiState.value)
 
         viewModel.selectBook(book)
-        assertEquals(SearchUiState.Success(listOf(book), "dune", book), viewModel.uiState.value)
+        assertEquals(SearchUiState.Success(listOf(book), "dune", book, hasMore = true), viewModel.uiState.value)
 
         viewModel.showResults()
-        assertEquals(SearchUiState.Success(listOf(book), "dune"), viewModel.uiState.value)
+        assertEquals(SearchUiState.Success(listOf(book), "dune", hasMore = true), viewModel.uiState.value)
     }
 
     @Test
@@ -98,21 +98,29 @@ class SearchViewModelTest {
         viewModel.search()
         runCurrent()
 
-        assertEquals(SearchUiState.Success(listOf(latestBook), "latest"), viewModel.uiState.value)
+        assertEquals(
+            SearchUiState.Success(listOf(latestBook), "latest", hasMore = true),
+            viewModel.uiState.value,
+        )
 
         olderResponse.complete(Resource.Success(listOf(sampleBook())))
         runCurrent()
 
-        assertEquals(SearchUiState.Success(listOf(latestBook), "latest"), viewModel.uiState.value)
+        assertEquals(
+            SearchUiState.Success(listOf(latestBook), "latest", hasMore = true),
+            viewModel.uiState.value,
+        )
     }
 
     @Test
-    fun loadMoreAppendsUniqueBooksAndStopsWhenTheNextPageIsShort() = runTest {
+    fun loadMoreDeduplicatesEditionsAndContinuesAfterShortPages() = runTest {
         val firstPage = (1..10).map { sampleBook().copy(id = "book-$it", title = "Book $it") }
         val nextBook = sampleBook().copy(id = "book-11", title = "Book 11")
+        val duplicateEdition = firstPage.last().copy(id = "another-source-id")
         val repository = FakeBookRepository { _, page ->
             if (page == 1) Resource.Success(firstPage)
-            else Resource.Success(listOf(firstPage.last(), nextBook))
+            else if (page == 2) Resource.Success(listOf(duplicateEdition, nextBook))
+            else Resource.Success(emptyList())
         }
         val viewModel = SearchViewModel(SearchBooks(repository))
 
@@ -121,18 +129,22 @@ class SearchViewModelTest {
         runCurrent()
         viewModel.loadMore()
         runCurrent()
+        viewModel.loadMore()
+        runCurrent()
 
         val state = viewModel.uiState.value as SearchUiState.Success
         assertEquals(11, state.books.size)
         assertEquals("book-11", state.books.last().id)
-        assertEquals(2, state.page)
+        assertEquals(3, state.page)
         assertFalse(state.hasMore)
-        assertEquals(listOf(1, 2), repository.receivedPages)
+        assertEquals(listOf(1, 2, 3), repository.receivedPages)
     }
 
     @Test
     fun loadMoreCanBeRetriedAfterAnError() = runTest {
-        val firstPage = (1..10).map { sampleBook().copy(id = "book-$it") }
+        val firstPage = (1..10).map {
+            sampleBook().copy(id = "book-$it", title = "Book $it")
+        }
         var failFirstAttempt = true
         val repository = FakeBookRepository { _, page ->
             when {
@@ -141,7 +153,8 @@ class SearchViewModelTest {
                     failFirstAttempt = false
                     Resource.Error("Network unavailable")
                 }
-                else -> Resource.Success(listOf(sampleBook().copy(id = "book-11")))
+                page == 2 -> Resource.Success(listOf(sampleBook().copy(id = "book-11")))
+                else -> Resource.Success(emptyList())
             }
         }
         val viewModel = SearchViewModel(SearchBooks(repository))
@@ -158,10 +171,12 @@ class SearchViewModelTest {
 
         viewModel.loadMore()
         runCurrent()
+        viewModel.loadMore()
+        runCurrent()
 
         val retriedState = viewModel.uiState.value as SearchUiState.Success
         assertEquals(11, retriedState.books.size)
-        assertEquals(2, retriedState.page)
+        assertEquals(3, retriedState.page)
         assertFalse(retriedState.hasMore)
     }
 

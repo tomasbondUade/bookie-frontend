@@ -14,10 +14,6 @@ import org.bookie.app.domain.usecase.SearchBooks
 class SearchViewModel(
     private val searchBooks: SearchBooks,
 ) : ViewModel() {
-    private companion object {
-        const val PAGE_SIZE = 10
-    }
-
     private val _query = MutableStateFlow("")
     val query = _query.asStateFlow()
 
@@ -56,9 +52,9 @@ class SearchViewModel(
                             SearchUiState.Empty(normalizedQuery)
                         } else {
                             SearchUiState.Success(
-                                books = result.data.distinctBy(Book::id),
+                                books = deduplicateBooks(result.data),
                                 query = normalizedQuery,
-                                hasMore = result.data.size >= PAGE_SIZE,
+                                hasMore = result.data.isNotEmpty(),
                             )
                         }
                     }
@@ -105,11 +101,11 @@ class SearchViewModel(
             ) {
                 _uiState.value = when (pageResult) {
                     is Resource.Success -> {
-                        val books = (latestState.books + pageResult.data).distinctBy(Book::id)
+                        val books = deduplicateBooks(latestState.books + pageResult.data)
                         latestState.copy(
                             books = books,
                             page = nextPage,
-                            hasMore = pageResult.data.size >= PAGE_SIZE && books.size > latestState.books.size,
+                            hasMore = pageResult.data.isNotEmpty(),
                             loadingMore = false,
                             loadMoreError = null,
                         )
@@ -134,6 +130,20 @@ class SearchViewModel(
         val currentState = _uiState.value
         if (currentState is SearchUiState.Success && currentState.selectedBook != null) {
             _uiState.value = currentState.copy(selectedBook = null)
+        }
+    }
+
+    private fun deduplicateBooks(books: List<Book>): List<Book> {
+        val seen = mutableSetOf<String>()
+        return books.filter { book ->
+            val title = book.title.lowercase().filter(Char::isLetterOrDigit)
+            val authors = book.authors
+                .map { it.lowercase().filter(Char::isLetterOrDigit) }
+                .filter(String::isNotEmpty)
+                .sorted()
+                .joinToString("|")
+            val key = if (title.isEmpty()) book.id else "$title|$authors"
+            seen.add(key)
         }
     }
 }
