@@ -2,6 +2,8 @@ package org.bookie.app.presentation.community
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -10,8 +12,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import org.bookie.app.presentation.components.BookieActionButton as Button
+import org.bookie.app.presentation.components.BookiePanelCard as Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
@@ -19,9 +21,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import org.bookie.app.presentation.components.BookieInputShape
+import org.bookie.app.presentation.components.bookieInputColors
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import org.bookie.app.presentation.components.BookiePageHeading
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -90,7 +95,7 @@ fun CommunityScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (create.visible) {
-            Text("Crear comunidad", style = MaterialTheme.typography.headlineSmall)
+            BookiePageHeading("Creá tu comunidad", "Un nuevo lugar para compartir historias.")
             org.bookie.app.presentation.components.BookieTextField(
                 value = create.name,
                 onValueChange = viewModel::onCreateNameChanged,
@@ -99,7 +104,9 @@ fun CommunityScreen(
                 enabled = !create.saving,
                 modifier = Modifier.fillMaxWidth(),
             )
-            androidx.compose.material3.OutlinedTextField(
+            OutlinedTextField(
+                shape = BookieInputShape,
+                colors = bookieInputColors(),
                 value = create.description,
                 onValueChange = viewModel::onCreateDescriptionChanged,
                 label = { Text("Descripción") },
@@ -159,8 +166,8 @@ fun CommunityScreen(
             TextButton(onClick = { selectedPostId = null; viewModel.showCommunities() }) {
                 Text("Volver a comunidades")
             }
-            Text(selected!!.name, style = MaterialTheme.typography.headlineSmall)
-            Text(selected!!.description)
+            BookiePageHeading(selected!!.name)
+            Text(selected!!.description, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (selected!!.tags.isNotEmpty()) {
                 Text(selected!!.tags.joinToString(" · "), style = MaterialTheme.typography.labelMedium)
             }
@@ -200,75 +207,57 @@ fun CommunityScreen(
             }
             }
         } else {
-            onBack?.let { TextButton(onClick = it) { Text("Volver a Inicio") } }
-            Text("COMUNIDADES", style = MaterialTheme.typography.titleLarge,
-                textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                label = { Text("Buscar comunidad") },
-                placeholder = { Text("Fantasía, misterio...") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Button(
-                onClick = viewModel::openCreate,
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text("Crear comunidad") }
-            Button(
-                onClick = viewModel::loadRecommendations,
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text("Ver recomendaciones para mí") }
-
-            when (val current = recommendations) {
-                CommunityRecommendationsState.Idle -> Unit
-                CommunityRecommendationsState.Loading ->
-                    BookieLoadingState(message = "Buscando comunidades para vos...")
-                CommunityRecommendationsState.Empty ->
-                    BookieEmptyState(message = "Todavía no hay recomendaciones.")
-                CommunityRecommendationsState.SignInRequired ->
-                    Text("Iniciá sesión para ver recomendaciones personalizadas.")
-                is CommunityRecommendationsState.Error ->
-                    BookieErrorState(message = current.message, onRetry = viewModel::loadRecommendations)
-                is CommunityRecommendationsState.Ready -> {
-                    Text("Recomendadas para vos", style = MaterialTheme.typography.titleMedium)
-                    current.communities.take(3).forEach { community ->
-                        CommunityCard(
-                            community = community,
-                            onClick = { viewModel.selectCommunity(community) },
-                        )
+            LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                item { BookiePageHeading("Comunidad", "Las buenas historias se comparten.") }
+                item {
+                    OutlinedTextField(shape = BookieInputShape, colors = bookieInputColors(), value = query, onValueChange = { query = it },
+                        label = { Text("Buscar comunidad") }, placeholder = { Text("Fantasía, misterio...") },
+                        singleLine = true, modifier = Modifier.fillMaxWidth())
+                }
+                item {
+                    Button(onClick = viewModel::openCreate, modifier = Modifier.fillMaxWidth()) { Text("Crear comunidad") }
+                    TextButton(onClick = viewModel::loadRecommendations, modifier = Modifier.fillMaxWidth()) {
+                        Text("Encontrar comunidades para mí")
                     }
                 }
-            }
-
-            Text("Descubrir", style = MaterialTheme.typography.titleMedium)
-            when (val current = catalog) {
-                CommunityCatalogState.Idle, CommunityCatalogState.Loading ->
-                    BookieLoadingState(message = "Cargando comunidades...")
-                CommunityCatalogState.Empty ->
-                    BookieEmptyState(message = "Todavía no hay comunidades disponibles.")
-                is CommunityCatalogState.Error ->
-                    BookieErrorState(message = current.message, onRetry = viewModel::retryCommunities)
-                is CommunityCatalogState.Ready -> LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    items(current.communities.filter { community ->
-                        query.isBlank() || community.name.contains(query.trim(), ignoreCase = true) ||
-                            community.tags.any { it.contains(query.trim(), ignoreCase = true) }
-                    }, key = Community::id) { community ->
-                        CommunityCard(community) { viewModel.selectCommunity(community) }
-                    }
-                    item {
-                        current.pageError?.let { error ->
-                            Text(error, color = MaterialTheme.colorScheme.error)
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        when (val current = recommendations) {
+                            CommunityRecommendationsState.Idle -> Unit
+                            CommunityRecommendationsState.Loading -> BookieLoadingState(message = "Buscando comunidades para vos...")
+                            CommunityRecommendationsState.Empty -> BookieEmptyState(message = "Todavía no hay recomendaciones.")
+                            CommunityRecommendationsState.SignInRequired -> {
+                                Text("Iniciá sesión para ver recomendaciones personalizadas.")
+                                onSignIn?.let { TextButton(onClick = it) { Text("Iniciar sesión") } }
+                            }
+                            is CommunityRecommendationsState.Error -> BookieErrorState(message = current.message, onRetry = viewModel::loadRecommendations)
+                            is CommunityRecommendationsState.Ready -> {
+                                Text("Para vos", style = MaterialTheme.typography.titleLarge)
+                                current.communities.take(3).forEach { community ->
+                                    CommunityCard(community) { viewModel.selectCommunity(community) }
+                                }
+                            }
                         }
-                        if (current.hasMore) {
-                            Button(
-                                onClick = viewModel::loadMoreCommunities,
-                                enabled = !current.loadingMore,
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
+                    }
+                }
+                item { Text("Descubrí tu círculo lector", style = MaterialTheme.typography.titleMedium) }
+                when (val current = catalog) {
+                    CommunityCatalogState.Idle, CommunityCatalogState.Loading -> item { BookieLoadingState(message = "Cargando comunidades...") }
+                    CommunityCatalogState.Empty -> item { BookieEmptyState(message = "Todavía no hay comunidades disponibles.") }
+                    is CommunityCatalogState.Error -> item { BookieErrorState(message = current.message, onRetry = viewModel::retryCommunities) }
+                    is CommunityCatalogState.Ready -> {
+                        val visible = current.communities.filter { community ->
+                            query.isBlank() || community.name.contains(query.trim(), ignoreCase = true) ||
+                                community.tags.any { it.contains(query.trim(), ignoreCase = true) }
+                        }
+                        if (visible.isEmpty()) item { BookieEmptyState(message = "No hay coincidencias en las comunidades cargadas.") }
+                        items(visible, key = Community::id) { community ->
+                            CommunityCard(community) { viewModel.selectCommunity(community) }
+                        }
+                        item {
+                            current.pageError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                            if (current.hasMore) Button(onClick = viewModel::loadMoreCommunities,
+                                enabled = !current.loadingMore, modifier = Modifier.fillMaxWidth()) {
                                 Text(if (current.loadingMore) "Cargando..." else "Ver más comunidades")
                             }
                         }
@@ -285,6 +274,8 @@ fun CommunityScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
+                        shape = BookieInputShape,
+                        colors = bookieInputColors(),
                         value = postDraft.title,
                         onValueChange = postsViewModel::onTitleChanged,
                         label = { Text("Título") },
@@ -292,6 +283,8 @@ fun CommunityScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                     OutlinedTextField(
+                        shape = BookieInputShape,
+                        colors = bookieInputColors(),
                         value = postDraft.content,
                         onValueChange = postsViewModel::onContentChanged,
                         label = { Text("Contenido") },
@@ -377,6 +370,8 @@ private fun CommunityCommentComposer(
             }
         }
         OutlinedTextField(
+            shape = BookieInputShape,
+            colors = bookieInputColors(),
             value = state.draft,
             onValueChange = { if (it.length <= 5000) onDraftChanged(it) },
             label = { Text(if (state.replyTo == null) "Comentario" else "Respuesta") },
@@ -466,7 +461,14 @@ private fun CommunityCard(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
-            Text(community.name, style = MaterialTheme.typography.titleMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                org.bookie.app.presentation.components.BookieAvatar(community.name)
+                Column(Modifier.weight(1f)) {
+                    Text(community.name, style = MaterialTheme.typography.titleMedium)
+                    Text("Un espacio para conectar", style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary)
+                }
+            }
             Text(community.description, style = MaterialTheme.typography.bodyMedium)
             if (community.tags.isNotEmpty()) {
                 Text(community.tags.joinToString(" · "), style = MaterialTheme.typography.labelSmall)

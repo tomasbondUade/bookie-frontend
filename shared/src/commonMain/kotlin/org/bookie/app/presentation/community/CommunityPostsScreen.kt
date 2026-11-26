@@ -4,6 +4,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
+import org.bookie.app.presentation.components.BookiePageHeading
+import org.bookie.app.presentation.components.BookieActionButton as Button
+import org.bookie.app.presentation.components.BookiePanelCard as Card
+import org.bookie.app.presentation.components.BookieInputShape
+import org.bookie.app.presentation.components.bookieInputColors
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -15,7 +20,7 @@ fun CommunityPostsScreen(viewModel: CommunityPostsViewModel, modifier: Modifier 
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     LaunchedEffect(viewModel) { viewModel.load() }
     Column(modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Publicaciones", style = MaterialTheme.typography.headlineSmall)
+        BookiePageHeading("Publicaciones", "Conversaciones entre lectores.")
         val selected = state.selectedPost
         if (selected != null) {
             TextButton(onClick = { viewModel.selectPost(null) }) { Text("Volver al feed") }
@@ -26,11 +31,15 @@ fun CommunityPostsScreen(viewModel: CommunityPostsViewModel, modifier: Modifier 
         } else {
             Text("Nueva publicación", style = MaterialTheme.typography.titleMedium)
             OutlinedTextField(
+                shape = BookieInputShape,
+                colors = bookieInputColors(),
                 value = state.title, onValueChange = viewModel::onTitleChanged,
                 label = { Text("Título") }, modifier = Modifier.fillMaxWidth(),
                 enabled = !state.publishing,
             )
             OutlinedTextField(
+                shape = BookieInputShape,
+                colors = bookieInputColors(),
                 value = state.content, onValueChange = viewModel::onContentChanged,
                 label = { Text("Contenido") }, modifier = Modifier.fillMaxWidth(),
                 minLines = 3, enabled = !state.publishing,

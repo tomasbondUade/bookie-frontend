@@ -8,8 +8,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import org.bookie.app.presentation.components.BookieActionButton as Button
+import org.bookie.app.presentation.components.BookiePanelCard as Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -17,6 +17,10 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import org.bookie.app.presentation.components.BookiePageHeading
+import org.bookie.app.presentation.components.BookieFeatureBanner
+import org.bookie.app.presentation.components.BookieInputShape
+import org.bookie.app.presentation.components.bookieInputColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -57,8 +61,12 @@ fun ReadingProgressScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             onBack?.let { TextButton(onClick = it) { Text("Volver a biblioteca") } }
-            Text("PROGRESO DE LECTURA", style = MaterialTheme.typography.titleLarge)
-            Text(current.bookTitle, style = MaterialTheme.typography.titleMedium)
+            BookiePageHeading("Tu lectura", "Un ratito de lectura, un paso más.")
+            BookieFeatureBanner(current.bookTitle, "Tu progreso y tus notas, en un mismo lugar.")
+            current.percentageInput.toIntOrNull()?.let { percentage ->
+                androidx.compose.material3.LinearProgressIndicator(
+                    progress = { percentage.coerceIn(0, 100) / 100f }, modifier = Modifier.fillMaxWidth())
+            }
             Text(
                 "La página y el porcentaje son independientes: el catálogo no informa el total de páginas.",
                 style = MaterialTheme.typography.bodySmall,
@@ -82,6 +90,8 @@ fun ReadingProgressScreen(
 
             Text("Guardar estado actual", style = MaterialTheme.typography.titleMedium)
             OutlinedTextField(
+                shape = BookieInputShape,
+                colors = bookieInputColors(),
                 value = current.privateNotesInput,
                 onValueChange = viewModel::onPrivateNotesChanged,
                 label = { Text("Notas privadas del libro") },
@@ -105,6 +115,8 @@ fun ReadingProgressScreen(
                 style = MaterialTheme.typography.bodySmall,
             )
             OutlinedTextField(
+                shape = BookieInputShape,
+                colors = bookieInputColors(),
                 value = current.sessionNotesInput,
                 onValueChange = viewModel::onSessionNotesChanged,
                 label = { Text("Notas de esta sesión") },

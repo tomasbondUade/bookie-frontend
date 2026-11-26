@@ -12,6 +12,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -19,9 +21,11 @@ import org.bookie.app.domain.model.Book
 
 @Composable
 fun BookCover(book: Book, modifier: Modifier = Modifier) {
-    val shape = RoundedCornerShape(6.dp)
+    val shape = RoundedCornerShape(10.dp)
     Box(
-        modifier = modifier.clip(shape).background(MaterialTheme.colorScheme.surfaceVariant),
+        modifier = modifier.clip(shape).background(Brush.verticalGradient(listOf(
+            MaterialTheme.colorScheme.primary.copy(alpha = .22f), MaterialTheme.colorScheme.surfaceVariant)))
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .25f), shape),
         contentAlignment = Alignment.Center,
     ) {
         val rawUrl = book.coverUrl?.trim()
@@ -32,13 +36,13 @@ fun BookCover(book: Book, modifier: Modifier = Modifier) {
                 "https://${rawUrl.substringAfter("://")}"
             else -> null
         }
-        if (imageUrl == null) {
+        // Keep a visible fallback under network images while loading or after a failure.
             Icon(
                 Icons.AutoMirrored.Filled.MenuBook,
-                contentDescription = "Sin portada",
+                contentDescription = if (imageUrl == null) "Sin portada" else null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-        } else {
+        if (imageUrl != null) {
             AsyncImage(
                 model = imageUrl,
                 contentDescription = "Portada de ${book.title}",

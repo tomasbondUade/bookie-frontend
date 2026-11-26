@@ -8,13 +8,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
+import org.bookie.app.presentation.components.BookieActionButton as Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import org.bookie.app.presentation.components.BookiePageHeading
+import org.bookie.app.presentation.components.BookieInputShape
+import org.bookie.app.presentation.components.bookieInputColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,7 +50,7 @@ fun ReadingPreferencesScreen(
         when (val current = state) {
             ReadingPreferencesUiState.Idle,
             ReadingPreferencesUiState.Loading -> {
-                Text("Preferencias de lectura", style = MaterialTheme.typography.headlineSmall)
+                BookiePageHeading("Tus gustos lectores", "Hagamos lugar a lo que te encanta leer.")
                 CircularProgressIndicator()
                 Text("Cargando tus preferencias")
             }
@@ -95,7 +98,7 @@ private fun PreferencesSummary(
     onEdit: () -> Unit,
     onClose: (() -> Unit)?,
 ) {
-    Text("Preferencias de lectura", style = MaterialTheme.typography.headlineSmall)
+    BookiePageHeading("Tus gustos lectores", "Hagamos lugar a lo que te encanta leer.")
     notice?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
     PreferenceValues("Géneros", preferences.preferredGenres)
     PreferenceValues("Autores", preferences.preferredAuthors)
@@ -113,15 +116,15 @@ private fun PreferencesEditor(
     saving: Boolean,
     viewModel: ReadingPreferencesViewModel,
 ) {
-    Text(
-        if (draft.isOnboarding) "Contanos qué te gusta leer" else "Editar preferencias",
-        style = MaterialTheme.typography.headlineSmall,
-    )
+    BookiePageHeading(if (draft.isOnboarding) "Tu mundo, tus libros" else "Tus gustos lectores",
+        "Una selección tan única como vos.")
     Text("Tus preferencias se guardan en tu cuenta y se usan para personalizar recomendaciones.")
 
     Text("Géneros", style = MaterialTheme.typography.titleMedium)
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
+            shape = BookieInputShape,
+            colors = bookieInputColors(),
             value = draft.genreInput,
             onValueChange = viewModel::updateGenreInput,
             label = { Text("Agregar géneros") },
@@ -141,6 +144,8 @@ private fun PreferencesEditor(
     Text("Autores", style = MaterialTheme.typography.titleMedium)
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
+            shape = BookieInputShape,
+            colors = bookieInputColors(),
             value = draft.authorInput,
             onValueChange = viewModel::updateAuthorInput,
             label = { Text("Agregar autores") },
@@ -160,6 +165,8 @@ private fun PreferencesEditor(
     Text("Libros favoritos", style = MaterialTheme.typography.titleMedium)
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
+            shape = BookieInputShape,
+            colors = bookieInputColors(),
             value = draft.searchQuery,
             onValueChange = viewModel::updateSearchQuery,
             label = { Text("Buscar por título o autor") },
@@ -219,9 +226,12 @@ private fun PreferencesEditor(
 
 @Composable
 private fun PreferenceValues(label: String, values: List<String>) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(label, style = MaterialTheme.typography.titleMedium)
-        Text(values.takeIf { it.isNotEmpty() }?.joinToString() ?: "Sin preferencias elegidas")
+    org.bookie.app.presentation.components.BookiePanelCard(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(label, style = MaterialTheme.typography.titleMedium)
+            Text(values.takeIf { it.isNotEmpty() }?.joinToString(" · ") ?: "Sin preferencias elegidas",
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 

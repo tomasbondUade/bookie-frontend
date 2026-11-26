@@ -1,48 +1,39 @@
 package org.bookie.app
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
+
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.background
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -52,8 +43,6 @@ import org.bookie.app.presentation.challenges.ReadingChallengesScreen
 import org.bookie.app.presentation.community.CommunityScreen
 import org.bookie.app.presentation.library.LibraryScreen
 import org.bookie.app.presentation.library.LibraryContentState
-import org.bookie.app.presentation.library.LibraryActionState
-import org.bookie.app.presentation.library.LibraryExperienceViewModel
 import org.bookie.app.presentation.library.LibraryNotConnectedScreen
 import org.bookie.app.presentation.components.BookieComponentsScreen
 import org.bookie.app.presentation.lists.BookListsScreen
@@ -63,32 +52,28 @@ import org.bookie.app.presentation.navigation.AppFeatureViewModels
 import org.bookie.app.presentation.profile.ReadingStatsScreen
 import org.bookie.app.presentation.progress.ReadingProgressScreen
 import org.bookie.app.presentation.preferences.ReadingPreferencesScreen
-import org.bookie.app.presentation.search.MoodSearchScreen
 import org.bookie.app.presentation.search.DiscoverScreen
 import org.bookie.app.presentation.search.SearchUiState
 import org.bookie.app.presentation.search.MoodSearchUiState
 import org.bookie.app.presentation.series.SeriesExplorerScreen
 import org.bookie.app.presentation.series.SeriesReadingScreen
 import org.bookie.app.presentation.tinder.BookTinderScreen
-import org.bookie.app.presentation.tinder.BookTinderUiState
-import org.bookie.app.presentation.tinder.BookTinderViewModel
-import org.bookie.app.presentation.components.BookCover
-import org.bookie.app.domain.model.LibraryStatus
 import org.bookie.app.domain.model.LibraryStateInput
-import org.bookie.app.domain.model.Book
 import org.bookie.app.theme.BookieTheme
+import org.bookie.app.presentation.components.BookieSplash
+import org.bookie.app.presentation.home.BookieHomeScreen
 
 @Composable
 @Preview
 fun App(featureViewModels: AppFeatureViewModels? = null) {
     BookieTheme {
+        var opening by rememberSaveable { mutableStateOf(true) }
         val authViewModel = featureViewModels?.auth
-        if (authViewModel == null) {
-            MainAppContent(featureViewModels, authState = null)
-        } else {
-            val authState by authViewModel.uiState.collectAsStateWithLifecycle()
-            LaunchedEffect(authViewModel) { authViewModel.restore() }
-            MainAppContent(featureViewModels, authState)
+        val authState = authViewModel?.uiState?.collectAsStateWithLifecycle()?.value
+        LaunchedEffect(authViewModel) { authViewModel?.restore() }
+        Crossfade(targetState = opening, animationSpec = tween(320), label = "Bookie opening") { splash ->
+            if (splash) BookieSplash(onFinished = { opening = false })
+            else MainAppContent(featureViewModels, authState)
         }
     }
 }
@@ -230,8 +215,11 @@ private fun MainAppContent(
     Scaffold(
             modifier = Modifier.fillMaxSize(),
             bottomBar = {
-                if (surface == AppSurface.MAIN && !bookDetailOpen) NavigationBar {
-                    listOf(AppDestination.HOME, AppDestination.SEARCH, AppDestination.LIBRARY).forEach { destination ->
+                if (surface == AppSurface.MAIN && !bookDetailOpen) NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 0.dp,
+                ) {
+                    listOf(AppDestination.HOME, AppDestination.LIBRARY, AppDestination.SEARCH, AppDestination.COMMUNITY, AppDestination.PROFILE).forEach { destination ->
                         NavigationBarItem(
                             selected = selectedDestination == destination,
                             onClick = {
@@ -258,13 +246,20 @@ private fun MainAppContent(
                             label = {
                                 Text(destination.label)
                             },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = .16f),
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            ),
                         )
                     }
                 }
             },
     ) { contentPadding ->
         val contentModifier =
-                Modifier.fillMaxSize().padding(contentPadding)
+                Modifier.fillMaxSize().padding(contentPadding).consumeWindowInsets(contentPadding).imePadding()
 
         when {
                 surface == AppSurface.AUTH -> {
@@ -504,7 +499,7 @@ private fun MainAppContent(
                 }
 
                 selectedDestination == AppDestination.HOME -> {
-                    HomeScreen(
+                    BookieHomeScreen(
                         modifier = contentModifier,
                         onSearch = { selectedRoute = AppDestination.SEARCH.route },
                         onCommunity = { selectedRoute = AppDestination.COMMUNITY.route },
@@ -516,8 +511,8 @@ private fun MainAppContent(
                                 selectedSurface = AppSurface.AUTH.name
                             } else selectedRoute = AppDestination.LIBRARY.route
                         },
-                        onExploreSeries = {
-                            if (featureViewModels != null) {
+                        onExploreSeries = featureViewModels?.let {
+                            {
                                 selectedSurface = AppSurface.SERIES_DISCOVERY.name
                             }
                         },
@@ -537,7 +532,7 @@ private fun MainAppContent(
                         accountId = (authState as? AuthUiState.SignedIn)?.userId,
                         onSignIn = requestSignIn.takeIf { authViewModel != null },
                         onProfile = {
-                            if (authState is AuthUiState.SignedIn) selectedRoute = AppDestination.PROFILE.route
+                            if (authState is AuthUiState.SignedIn || authViewModel == null) selectedRoute = AppDestination.PROFILE.route
                             else requestSignIn()
                         },
                         tinderViewModel = featureViewModels?.bookTinder,
@@ -563,118 +558,6 @@ private enum class AppSurface {
     READING_PROGRESS,
     PREFERENCES,
     COMPONENTS_SHOWCASE,
-}
-
-@Composable
-private fun HomeScreen(
-    modifier: Modifier = Modifier,
-    onSearch: () -> Unit,
-    onCommunity: () -> Unit,
-    onLibrary: () -> Unit,
-    onExploreSeries: () -> Unit,
-    onExploreTinder: (() -> Unit)?,
-    onExploreChallenges: (() -> Unit)?,
-    isSignedIn: Boolean,
-    accountId: String?,
-    onSignIn: (() -> Unit)?,
-    onProfile: () -> Unit,
-    tinderViewModel: BookTinderViewModel?,
-    libraryViewModel: LibraryExperienceViewModel?,
-) {
-    var homeTab by rememberSaveable { mutableStateOf(0) }
-    val feed = tinderViewModel?.uiState?.collectAsStateWithLifecycle()?.value
-    val library = libraryViewModel?.uiState?.collectAsStateWithLifecycle()?.value
-    LaunchedEffect(libraryViewModel, isSignedIn) {
-        if (isSignedIn && libraryViewModel?.uiState?.value?.content == LibraryContentState.Idle) {
-            libraryViewModel.refresh()
-        }
-    }
-    val currentlyReading = (library?.content as? LibraryContentState.Ready)
-        ?.snapshot?.entries?.firstOrNull { it.status == LibraryStatus.READING }
-    val recommendation = (feed as? BookTinderUiState.Ready)?.feed?.books?.firstOrNull()?.book
-    LaunchedEffect(accountId, tinderViewModel) {
-        if (accountId != null) tinderViewModel?.loadFeed()
-    }
-    Column(
-        modifier = modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Spacer(Modifier.width(48.dp))
-            Text("INICIO", modifier = Modifier.weight(1f), textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.titleLarge)
-            IconButton(onClick = onProfile) {
-                Icon(Icons.Default.AccountCircle, contentDescription = "Abrir perfil")
-            }
-        }
-        Text("Para vos", style = MaterialTheme.typography.titleMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("Recomendados", "Continuar leyendo").forEachIndexed { index, label ->
-                androidx.compose.material3.FilterChip(
-                    selected = homeTab == index,
-                    onClick = { homeTab = index },
-                    label = { Text(label) },
-                )
-            }
-        }
-        if (homeTab == 0) {
-            if (recommendation != null && isSignedIn) {
-                FeaturedBook(recommendation)
-                onExploreTinder?.let { action ->
-                    Button(onClick = action, modifier = Modifier.fillMaxWidth()) { Text("Ver recomendación") }
-                }
-            } else {
-                Text(
-                    if (isSignedIn) "Todavía no hay recomendaciones disponibles."
-                    else "Descubrí libros sin iniciar sesión. Para recomendaciones personales, ingresá a tu cuenta.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Button(onClick = onSearch, modifier = Modifier.fillMaxWidth()) { Text("Descubrir libros") }
-            }
-        } else if (currentlyReading != null && isSignedIn) {
-            FeaturedBook(currentlyReading.book)
-            Text("${currentlyReading.progressPercentage ?: 0}% leído")
-            LinearProgressIndicator(
-                progress = { (currentlyReading.progressPercentage ?: 0) / 100f },
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Button(onClick = onLibrary, modifier = Modifier.fillMaxWidth()) { Text("Abrir mi biblioteca") }
-        } else {
-            Text("Todavía no tenés una lectura en progreso.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Button(onClick = onLibrary, modifier = Modifier.fillMaxWidth()) { Text("Ir a biblioteca") }
-        }
-        HorizontalDivider()
-        Text("Explorar Bookie", style = MaterialTheme.typography.titleMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            androidx.compose.material3.OutlinedButton(onClick = onCommunity, modifier = Modifier.weight(1f)) {
-                Text("Comunidades")
-            }
-            androidx.compose.material3.OutlinedButton(onClick = onExploreSeries, modifier = Modifier.weight(1f)) {
-                Text("Sagas")
-            }
-        }
-        onExploreChallenges?.let { action ->
-            androidx.compose.material3.TextButton(onClick = action) { Text("Retos de lectura") }
-        }
-        if (!isSignedIn) onSignIn?.let { action ->
-            androidx.compose.material3.TextButton(onClick = action) { Text("Iniciar sesión o crear cuenta") }
-        }
-    }
-}
-
-@Composable
-private fun FeaturedBook(book: Book) {
-    Box(
-        modifier = Modifier.fillMaxWidth().height(220.dp)
-            .background(MaterialTheme.colorScheme.surfaceVariant),
-        contentAlignment = Alignment.Center,
-    ) {
-        BookCover(book, Modifier.size(width = 126.dp, height = 184.dp))
-    }
-    Text(book.title, style = MaterialTheme.typography.titleLarge)
-    Text(book.authors.joinToString().ifBlank { "Autor desconocido" },
-        color = MaterialTheme.colorScheme.onSurfaceVariant)
-    Text(book.genres.firstOrNull().orEmpty(), style = MaterialTheme.typography.bodySmall)
 }
 
 @Composable

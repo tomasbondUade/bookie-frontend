@@ -5,11 +5,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import org.bookie.app.presentation.components.BookieActionButton as Button
+import org.bookie.app.presentation.components.BookiePanelCard as Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import org.bookie.app.presentation.components.BookieTabs
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -42,16 +42,9 @@ internal fun BookReviewsSection(
                 BookieErrorState(message = current.message, onRetry = viewModel::retry)
             is BookReviewsUiState.Ready -> {
                 Text("${current.total} reseña(s)", style = MaterialTheme.typography.bodySmall)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(
-                        onClick = { viewModel.changeSort(BookReviewSort.RECENT) },
-                        enabled = current.sort != BookReviewSort.RECENT,
-                    ) { Text("Recientes") }
-                    TextButton(
-                        onClick = { viewModel.changeSort(BookReviewSort.TOP) },
-                        enabled = current.sort != BookReviewSort.TOP,
-                    ) { Text("Mejor puntuadas") }
-                }
+                BookieTabs(listOf("Recientes", "Mejor puntuadas"),
+                    if (current.sort == BookReviewSort.RECENT) 0 else 1,
+                    { viewModel.changeSort(if (it == 0) BookReviewSort.RECENT else BookReviewSort.TOP) })
                 current.reviews.forEach { review ->
                     ReviewCard(review)
                 }
@@ -79,9 +72,16 @@ private fun ReviewCard(review: BookReview) {
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
-            Text(review.username, style = MaterialTheme.typography.titleSmall)
-            review.rating?.let { rating ->
-                Text("Calificación: $rating/5", style = MaterialTheme.typography.bodyMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                org.bookie.app.presentation.components.BookieAvatar(review.username)
+                Column {
+                    Text(review.username, style = MaterialTheme.typography.titleSmall)
+                    review.rating?.let { rating ->
+                        Text("★".repeat(rating.coerceIn(0, 5)) + "  $rating/5",
+                            style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                    }
+                }
             }
             review.comment?.takeIf(String::isNotBlank)?.let { comment ->
                 Text(comment, style = MaterialTheme.typography.bodyMedium)

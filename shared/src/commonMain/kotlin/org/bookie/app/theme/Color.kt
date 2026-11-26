@@ -7,18 +7,20 @@ object BookieColors {
 
     // DARK THEME - Tema principal de Bookie
 
-    val DarkBackground = Color(0xFF100D18)
-    val DarkSurface = Color(0xFF1B1728)
-    val DarkSurfaceVariant = Color(0xFF292239)
+    val DarkBackground = Color(0xFF070B20)
+    val DarkSurface = Color(0xFF10162F)
+    val DarkSurfaceVariant = Color(0xFF1A2141)
 
-    val DarkPrimary = Color(0xFF7657F6)
-    val DarkSecondary = Color(0xFFA855F7)
+    val DarkPrimary = Color(0xFFB5A1FF)
+    val DarkSecondary = Color(0xFF89B7FF)
     val DarkAccent = Color(0xFFD6A6FF)
+    val GradientBlue = Color(0xFF3468ED)
+    val GradientViolet = Color(0xFF9447E8)
 
-    val DarkTextPrimary = Color(0xFFF7F3FF)
-    val DarkTextSecondary = Color(0xFFB9B0C9)
+    val DarkTextPrimary = Color(0xFFF5F3FF)
+    val DarkTextSecondary = Color(0xFFB4BAD3)
 
-    val DarkOutline = Color(0xFF514766)
+    val DarkOutline = Color(0xFF424A70)
     val DarkError = Color(0xFFFF6B78)
 
 

@@ -1,7 +1,5 @@
 package org.bookie.app.presentation.components
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -26,14 +24,10 @@ fun BookieButton(
 ) {
     when (type) {
         BookieButtonType.PRIMARY -> {
-            Button(
+            BookieActionButton(
                 onClick = onClick,
                 modifier = modifier,
                 enabled = enabled,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
             ) {
                 Text(
                     text = text,

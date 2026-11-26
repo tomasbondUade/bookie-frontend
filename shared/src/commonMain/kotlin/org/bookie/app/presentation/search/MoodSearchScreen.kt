@@ -2,26 +2,21 @@ package org.bookie.app.presentation.search
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
+import org.bookie.app.presentation.components.BookieActionButton as Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.Card
+import org.bookie.app.presentation.components.BookiePageHeading
+import org.bookie.app.presentation.components.BookieFeatureBanner
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import org.bookie.app.presentation.components.BookieBookCard
-import org.bookie.app.presentation.components.BookCover
 import org.bookie.app.domain.model.Book
 import org.bookie.app.presentation.library.LibraryActionState
 import org.bookie.app.presentation.components.BookieEmptyState
@@ -47,8 +42,7 @@ fun MoodSearchScreen(
         modifier = modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        if (selected == null) Text("POR ÁNIMO", style = MaterialTheme.typography.titleLarge,
-            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        if (selected == null) BookiePageHeading("¿Cómo te sentís hoy?", "Hay una historia para cada momento.")
 
         if (selected != null) {
             // Reuses #3's existing catalog detail instead of duplicating its fields/links.
@@ -105,7 +99,8 @@ fun MoodSearchScreen(
             }
             when (val current = state) {
                 MoodSearchUiState.Idle ->
-                    Text("Describí tu estado de ánimo o la historia que querés encontrar.")
+                    BookieFeatureBanner("Dejá que una historia te encuentre.",
+                        "Probá con: una aventura que me sorprenda, algo para reír o una historia para desconectar.")
                 MoodSearchUiState.Loading ->
                     BookieLoadingState(message = "Buscando libros para vos...")
                 MoodSearchUiState.Empty ->
@@ -117,15 +112,8 @@ fun MoodSearchScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(current.books, key = { it.book.id }) { result ->
-                        Card(onClick = { viewModel.selectBook(result) }, modifier = Modifier.fillMaxWidth()) {
-                            Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                BookCover(result.book, Modifier.size(width = 64.dp, height = 88.dp))
-                                Column(modifier = Modifier.padding(start = 12.dp)) {
-                                    Text(result.book.title, style = MaterialTheme.typography.titleMedium)
-                                    Text(result.book.authors.joinToString().ifBlank { "Autor desconocido" })
-                                }
-                            }
-                        }
+                        org.bookie.app.presentation.components.BookieCatalogCard(result.book,
+                            onClick = { viewModel.selectBook(result) })
                     }
                 }
             }

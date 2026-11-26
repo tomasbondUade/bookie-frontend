@@ -2,6 +2,9 @@
 package org.bookie.app.theme
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -11,10 +14,16 @@ import androidx.compose.ui.graphics.Color
 private val BookieDarkColorScheme = darkColorScheme(
 
     primary = BookieColors.DarkPrimary,
-    onPrimary = Color.White,
+    onPrimary = BookieColors.DarkBackground,
 
     secondary = BookieColors.DarkSecondary,
-    onSecondary = Color.White,
+    onSecondary = BookieColors.DarkBackground,
+    secondaryContainer = BookieColors.DarkSurfaceVariant,
+    onSecondaryContainer = BookieColors.DarkTextPrimary,
+    tertiary = BookieColors.DarkAccent,
+    tertiaryContainer = BookieColors.DarkSurfaceVariant,
+    onTertiaryContainer = BookieColors.DarkTextPrimary,
+    outlineVariant = BookieColors.DarkOutline.copy(alpha = .35f),
 
     primaryContainer = BookieColors.DarkSurfaceVariant,
     onPrimaryContainer = BookieColors.DarkTextPrimary,
@@ -24,6 +33,9 @@ private val BookieDarkColorScheme = darkColorScheme(
 
     surface = BookieColors.DarkSurface,
     onSurface = BookieColors.DarkTextPrimary,
+    surfaceContainer = BookieColors.DarkSurface,
+    surfaceContainerLow = BookieColors.DarkBackground,
+    surfaceContainerHigh = BookieColors.DarkSurfaceVariant,
 
     surfaceVariant = BookieColors.DarkSurfaceVariant,
     onSurfaceVariant = BookieColors.DarkTextSecondary,
@@ -64,7 +76,7 @@ private val BookieLightColorScheme = lightColorScheme(
 // Tema principal de Bookie
 @Composable
 fun BookieTheme(
-    darkTheme: Boolean = false,
+    darkTheme: Boolean = true,
     content: @Composable () -> Unit
 ) {
 
@@ -77,6 +89,11 @@ fun BookieTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = BookieTypography,
+        shapes = Shapes(
+            extraSmall = RoundedCornerShape(10.dp), small = RoundedCornerShape(16.dp),
+            medium = RoundedCornerShape(20.dp), large = RoundedCornerShape(24.dp),
+            extraLarge = RoundedCornerShape(28.dp),
+        ),
         content = content
     )
 }

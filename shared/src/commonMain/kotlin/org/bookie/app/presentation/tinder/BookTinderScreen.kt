@@ -1,29 +1,21 @@
 package org.bookie.app.presentation.tinder
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.ThumbDown
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import org.bookie.app.presentation.components.BookieActionButton as Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import org.bookie.app.presentation.components.BookiePageHeading
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -36,7 +28,6 @@ import org.bookie.app.domain.model.SwipeType
 import org.bookie.app.presentation.components.BookieEmptyState
 import org.bookie.app.presentation.components.BookieErrorState
 import org.bookie.app.presentation.components.BookieLoadingState
-import org.bookie.app.presentation.components.BookCover
 
 @Composable
 fun BookTinderScreen(
@@ -54,8 +45,7 @@ fun BookTinderScreen(
         onBack?.let { goBack ->
             TextButton(onClick = goBack) { Text("Volver") }
         }
-        Text("PARA VOS", style = MaterialTheme.typography.titleLarge,
-            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        BookiePageHeading("Un nuevo capítulo", "Elegí las historias que van con vos.")
 
         when (val current = state) {
             BookTinderUiState.Loading -> BookieLoadingState(
@@ -123,12 +113,7 @@ fun BookTinderScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().height(220.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            BookCover(recommendation.book, Modifier.size(width = 140.dp, height = 205.dp))
-                        }
+                        org.bookie.app.presentation.components.BookieBookHero(recommendation.book)
                         Text(
                             text = recommendation.book.title,
                             style = MaterialTheme.typography.headlineSmall,

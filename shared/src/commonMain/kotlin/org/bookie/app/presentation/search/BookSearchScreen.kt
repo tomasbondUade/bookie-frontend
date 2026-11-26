@@ -1,12 +1,10 @@
 package org.bookie.app.presentation.search
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,10 +13,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
+import org.bookie.app.presentation.components.BookieActionButton as Button
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -28,6 +25,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.Icon
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
+import org.bookie.app.presentation.components.BookiePageHeading
+import org.bookie.app.presentation.components.BookieFeatureBanner
+import org.bookie.app.presentation.components.BookieInputShape
+import org.bookie.app.presentation.components.bookieInputColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -37,12 +38,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.bookie.app.domain.model.Book
-import org.bookie.app.presentation.components.BookCover
 import org.bookie.app.presentation.library.LibraryActionState
 
 @Composable
@@ -57,6 +56,7 @@ fun BookSearchScreen(
     val query by viewModel.query.collectAsStateWithLifecycle()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val selectedBook = (state as? SearchUiState.Success)?.selectedBook
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
 
     Column(
         modifier = modifier
@@ -65,13 +65,13 @@ fun BookSearchScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         if (selectedBook == null) {
-            Text("DESCUBRIR", style = MaterialTheme.typography.titleLarge,
-                textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-            Text("Buscar libro", style = MaterialTheme.typography.labelLarge)
+            BookiePageHeading("Descubrir", "Tu próxima lectura te espera.")
         }
 
         if (selectedBook == null) {
             OutlinedTextField(
+                shape = BookieInputShape,
+                colors = bookieInputColors(),
                 value = query,
                 onValueChange = viewModel::onQueryChanged,
                 modifier = Modifier.fillMaxWidth(),
@@ -79,10 +79,10 @@ fun BookSearchScreen(
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { viewModel.search() }),
+                keyboardActions = KeyboardActions(onSearch = { keyboard?.hide(); viewModel.search() }),
             )
             Button(
-                onClick = viewModel::search,
+                onClick = { keyboard?.hide(); viewModel.search() },
                 enabled = query.isNotBlank() && state !is SearchUiState.Loading,
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -91,7 +91,7 @@ fun BookSearchScreen(
         }
 
         when (val currentState = state) {
-            SearchUiState.Idle -> Text("Encontrá tu próxima lectura por título, autor o ISBN.")
+            SearchUiState.Idle -> BookieFeatureBanner("Miles de historias.\nUna puede ser la tuya.", "Buscá por título, autor o ISBN y descubrí tu próxima lectura.")
             SearchUiState.Loading -> {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     CircularProgressIndicator()
@@ -163,24 +163,7 @@ private fun BookResult(
     book: Book,
     onClick: () -> Unit,
 ) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Box(modifier = Modifier.fillMaxWidth().height(150.dp), contentAlignment = Alignment.Center) {
-                BookCover(book, Modifier.size(width = 96.dp, height = 140.dp))
-            }
-            Text(book.title, style = MaterialTheme.typography.titleMedium)
-            Text(book.authors.joinToString().ifBlank { "Autor desconocido" })
-            if (book.genres.isNotEmpty()) {
-                Text(book.genres.joinToString(), style = MaterialTheme.typography.bodySmall)
-            }
-        }
-    }
+    org.bookie.app.presentation.components.BookieCatalogCard(book, onClick)
 }
 
 @Composable
@@ -206,15 +189,13 @@ internal fun BookDetail(
         TextButton(onClick = onBack) {
             Text("Volver")
         }
-        Box(modifier = Modifier.fillMaxWidth().height(220.dp), contentAlignment = Alignment.Center) {
-            BookCover(book, Modifier.size(width = 142.dp, height = 208.dp))
-        }
+        org.bookie.app.presentation.components.BookieBookHero(book)
         Text(book.title, style = MaterialTheme.typography.headlineSmall,
-            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            modifier = Modifier.fillMaxWidth())
         Text(book.authors.joinToString().ifBlank { "Autor desconocido" },
-            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth())
         Text(book.genres.joinToString(" · "), style = MaterialTheme.typography.bodySmall,
-            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            color = MaterialTheme.colorScheme.primary, modifier = Modifier.fillMaxWidth())
         HorizontalDivider()
         book.description?.takeIf(String::isNotBlank)?.let { Text(it) }
         onAddToLibrary?.let { add ->

@@ -22,6 +22,8 @@ fun BookieTextField(
         modifier = modifier
     ) {
         OutlinedTextField(
+            shape = BookieInputShape,
+            colors = bookieInputColors(),
             value = value,
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth(),

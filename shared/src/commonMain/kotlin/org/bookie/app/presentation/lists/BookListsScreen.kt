@@ -13,17 +13,19 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import org.bookie.app.presentation.components.BookieActionButton as Button
+import org.bookie.app.presentation.components.BookiePanelCard as Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Tab
-import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import org.bookie.app.presentation.components.BookiePageHeading
+import org.bookie.app.presentation.components.BookieTabs
+import org.bookie.app.presentation.components.BookieInputShape
+import org.bookie.app.presentation.components.bookieInputColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -33,7 +35,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -52,10 +53,8 @@ fun LibraryWorkspaceScreen(
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(0) }
     Column(modifier.fillMaxSize()) {
-        SecondaryTabRow(selectedTabIndex = selectedTab) {
-            Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Libros") })
-            Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("Mis listas") })
-        }
+        BookieTabs(listOf("Libros", "Mis listas"), selectedTab, { selectedTab = it },
+            Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
         when (selectedTab) {
             0 -> LibraryExperienceScreen(libraryViewModel, Modifier.weight(1f), onOpenProgress)
             else -> BookListsScreen(listsViewModel, onSignIn, Modifier.weight(1f))
@@ -97,12 +96,8 @@ fun BookListsScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                state.selectedList?.name?.uppercase() ?: "MIS LISTAS",
-                style = MaterialTheme.typography.titleLarge,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.weight(1f),
-            )
+            BookiePageHeading(state.selectedList?.name ?: "Mis listas",
+                modifier = Modifier.weight(1f))
             if (state.selectedList == null) {
                 Button(onClick = { viewModel.dismissAction(); createDialog = true }) { Text("Nueva lista") }
             } else {
@@ -143,7 +138,7 @@ fun BookListsScreen(
                 }
                 is BookListsContentState.Ready -> {
                     if (content.snapshot.lists.isEmpty()) {
-                        Text("Todavía no creaste listas.")
+                        org.bookie.app.presentation.components.BookieEmptyState(message = "Tu próxima colección empieza acá. Creá una lista para organizar tus lecturas.")
                     } else {
                         BookListsItems(content.snapshot.lists, viewModel)
                     }
@@ -300,6 +295,8 @@ private fun BookListEditorDialog(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 OutlinedTextField(
+                    shape = BookieInputShape,
+                    colors = bookieInputColors(),
                     value = name,
                     onValueChange = { name = it; error = null },
                     label = { Text("Nombre") },
@@ -307,6 +304,8 @@ private fun BookListEditorDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
+                    shape = BookieInputShape,
+                    colors = bookieInputColors(),
                     value = description,
                     onValueChange = { description = it },
                     label = { Text("Descripción") },
@@ -361,6 +360,8 @@ private fun AddBookDialog(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 OutlinedTextField(
+                    shape = BookieInputShape,
+                    colors = bookieInputColors(),
                     value = query,
                     onValueChange = { query = it },
                     label = { Text("Título o autor") },
