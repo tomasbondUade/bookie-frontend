@@ -38,4 +38,6 @@ data class AppFeatureViewModels(
     val bookTinder: BookTinderViewModel? = null,
     val readingCompatibility: ReadingCompatibilityViewModel? = null,
     val readingChallenges: ReadingChallengesViewModel? = null,
+    /** Fresh mutable feature ViewModels for each authenticated account. */
+    val forAccount: ((String) -> AppFeatureViewModels)? = null,
 )

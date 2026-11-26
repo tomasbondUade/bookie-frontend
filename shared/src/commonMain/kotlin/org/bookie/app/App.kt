@@ -34,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -88,7 +89,13 @@ fun App(featureViewModels: AppFeatureViewModels? = null) {
         } else {
             val authState by authViewModel.uiState.collectAsStateWithLifecycle()
             LaunchedEffect(authViewModel) { authViewModel.restore() }
-            MainAppContent(featureViewModels, authState)
+            val accountId = (authState as? AuthUiState.SignedIn)?.userId?.takeIf(String::isNotBlank)
+            val accountFeatures = if (accountId != null && featureViewModels != null) {
+                remember(featureViewModels, accountId) {
+                    featureViewModels.forAccount?.invoke(accountId) ?: featureViewModels
+                }
+            } else featureViewModels
+            MainAppContent(accountFeatures, authState)
         }
     }
 }
@@ -227,6 +234,8 @@ private fun MainAppContent(
         }
     }
 
+    // Reset remembered screen state on account changes without resetting navigation.
+    key((authState as? AuthUiState.SignedIn)?.userId ?: "signed-out") {
     Scaffold(
             modifier = Modifier.fillMaxSize(),
             bottomBar = {
@@ -485,7 +494,15 @@ private fun MainAppContent(
 
                 selectedDestination == AppDestination.PROFILE &&
                         featureViewModels != null -> {
-                    if (authState !is AuthUiState.SignedIn && authViewModel != null) {
+                    if (authState == AuthUiState.SigningOut) {
+                        Column(
+                            modifier = contentModifier.padding(24.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            CircularProgressIndicator()
+                            Text("Cerrando sesión y limpiando datos locales…")
+                        }
+                    } else if (authState !is AuthUiState.SignedIn && authViewModel != null) {
                         AuthScreen(authViewModel, contentModifier)
                     } else ReadingStatsScreen(
                         viewModel = featureViewModels.readingStats,
@@ -500,6 +517,10 @@ private fun MainAppContent(
                         onSignOut = authViewModel?.let { viewModel -> ({ viewModel.signOut() }) },
                         onOpenLibrary = { selectedRoute = AppDestination.LIBRARY.route },
                         email = (authState as? AuthUiState.SignedIn)?.email,
+                        username = (authState as? AuthUiState.SignedIn)?.username,
+                        syncWarning = (authState as? AuthUiState.SignedIn)?.syncWarning,
+                        onRetrySync = authViewModel?.let { vm -> ({ vm.retrySync() }) },
+                        signOutError = (authState as? AuthUiState.SignedIn)?.signOutError,
                     )
                 }
 
@@ -550,6 +571,7 @@ private fun MainAppContent(
                     contentModifier,
                 )
         }
+    }
     }
 }
 
