@@ -30,3 +30,22 @@ Build and run the existing shared tests:
 The Windows verification uses the configured JDK 21 daemon and Android SDK 37.1. Android emulator review checks the home layout, navigation, splash and the authentication form with local state. Authentication requests and personalized content require the project's real runtime configuration and a real session; no credentials are committed.
 
 iOS compilation and simulator checks require macOS and remain a separate validation step. All new product UI and the illustration live in `commonMain`.
+
+### Recorded Android verification on 2026-11-26
+
+- `:androidApp:assembleDebug`: successful. The final APK excludes the temporary visual-preview Activity.
+- `:shared:testAndroidHostTest`: 240 tests across 57 suites, zero failures and zero skipped tests.
+- Installed the final APK on the Android 37.1 emulator and observed the shared opening screen transition into Home.
+- Reviewed the sign-in and four-field registration layouts using `BookieAuthContent` with local form state. Field focus and the visible local error state were also inspected. These previews did not create an account or contact Supabase.
+- The emulator used its hardware keyboard configuration; a software-keyboard regression check remains separate from these screenshots.
+- No real-session backend flow or iOS simulator run was performed in this Windows verification.
+
+Actual emulator captures:
+
+| Opening | Home |
+| --- | --- |
+| ![Bookie opening](design/splash.png) | ![Bookie Home](design/home.png) |
+
+| Sign-in with local form state | Registration with local form state |
+| --- | --- |
+| ![Sign-in](design/login.png) | ![Registration](design/register.png) |
