@@ -10,19 +10,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.bookie.app.domain.model.LibraryBookState
@@ -31,6 +32,7 @@ import org.bookie.app.domain.model.LibraryStatus
 import org.bookie.app.presentation.components.BookieEmptyState
 import org.bookie.app.presentation.components.BookieErrorState
 import org.bookie.app.presentation.components.BookieLoadingState
+import org.bookie.app.presentation.components.LibraryNumberPickerDialog
 
 /** UI for #32. Compose never accesses Ktor, DTOs, SQLDelight or a JWT. */
 @Composable
@@ -193,6 +195,8 @@ private fun LibraryBookCard(
     val editableProgress = selectedStatus == LibraryStatus.READING
     val pageText = draft?.pageText ?: entry.currentPage?.toString().orEmpty()
     val percentageText = draft?.percentageText ?: entry.progressPercentage?.toString().orEmpty()
+    var showPagePicker by remember(entry.id) { mutableStateOf(false) }
+    var showPercentagePicker by remember(entry.id) { mutableStateOf(false) }
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -247,28 +251,24 @@ private fun LibraryBookCard(
             )
             if (editableProgress) {
                 Text(
-                    "En estado Leyendo podés ingresar una página o porcentaje antes de guardar.",
+                    "En estado Leyendo podés elegir una página o porcentaje antes de guardar.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                OutlinedTextField(
-                    value = pageText,
-                    onValueChange = { viewModel.editDraftPage(entry.id, it) },
-                    label = { Text("Página leída (opcional)") },
+                OutlinedButton(
+                    onClick = { showPagePicker = true },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !writing,
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                )
-                OutlinedTextField(
-                    value = percentageText,
-                    onValueChange = { viewModel.editDraftPercentage(entry.id, it) },
-                    label = { Text("Progreso 0-100% (opcional)") },
+                ) {
+                    Text(pageText.takeIf(String::isNotBlank)?.let { "Página: $it" } ?: "Elegir página")
+                }
+                OutlinedButton(
+                    onClick = { showPercentagePicker = true },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !writing,
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                )
+                ) {
+                    Text(percentageText.takeIf(String::isNotBlank)?.let { "Progreso: $it%" } ?: "Elegir progreso")
+                }
             } else {
                 Text(
                     if (selectedStatus == LibraryStatus.READ) {
@@ -294,7 +294,38 @@ private fun LibraryBookCard(
             }
         }
     }
+
+    if (showPagePicker) {
+        LibraryNumberPickerDialog(
+            title = "Página leída",
+            initialValue = pageText.toIntOrNull(),
+            minValue = 0,
+            maxValue = MAX_PAGE,
+            allowEmpty = true,
+            onDismiss = { showPagePicker = false },
+            onConfirm = {
+                viewModel.editDraftPage(entry.id, it?.toString().orEmpty())
+                showPagePicker = false
+            },
+        )
+    }
+    if (showPercentagePicker) {
+        LibraryNumberPickerDialog(
+            title = "Progreso (0 a 100%)",
+            initialValue = percentageText.toIntOrNull(),
+            minValue = 0,
+            maxValue = 100,
+            allowEmpty = true,
+            onDismiss = { showPercentagePicker = false },
+            onConfirm = {
+                viewModel.editDraftPercentage(entry.id, it?.toString().orEmpty())
+                showPercentagePicker = false
+            },
+        )
+    }
 }
+
+private const val MAX_PAGE = 1_000_000
 
 @Composable
 private fun LibraryNotice(message: String, error: Boolean, onDismiss: (() -> Unit)?) {
