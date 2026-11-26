@@ -11,8 +11,8 @@ import org.bookie.app.domain.result.Resource
 class BookRepositoryImpl(
     private val remoteDataSource: BookSearchRemoteDataSource,
 ) : BookRepository {
-    override suspend fun searchBooks(query: String): Resource<List<Book>> = try {
-        Resource.Success(remoteDataSource.searchBooks(query).map { it.toDomain() })
+    override suspend fun searchBooks(query: String, page: Int): Resource<List<Book>> = try {
+        Resource.Success(remoteDataSource.searchBooks(query, page).map { it.toDomain() })
     } catch (exception: Exception) {
         Resource.Error(exception.toApiError().toMessage())
     }

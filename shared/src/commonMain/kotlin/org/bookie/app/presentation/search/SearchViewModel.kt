@@ -14,6 +14,10 @@ import org.bookie.app.domain.usecase.SearchBooks
 class SearchViewModel(
     private val searchBooks: SearchBooks,
 ) : ViewModel() {
+    private companion object {
+        const val PAGE_SIZE = 10
+    }
+
     private val _query = MutableStateFlow("")
     val query = _query.asStateFlow()
 
@@ -46,12 +50,16 @@ class SearchViewModel(
 
         searchJob = viewModelScope.launch {
             val resultState = try {
-                when (val result = searchBooks(normalizedQuery)) {
+                when (val result = searchBooks(normalizedQuery, page = 1)) {
                     is Resource.Success -> {
                         if (result.data.isEmpty()) {
                             SearchUiState.Empty(normalizedQuery)
                         } else {
-                            SearchUiState.Success(books = result.data, query = normalizedQuery)
+                            SearchUiState.Success(
+                                books = result.data.distinctBy(Book::id),
+                                query = normalizedQuery,
+                                hasMore = result.data.size >= PAGE_SIZE,
+                            )
                         }
                     }
 
@@ -68,6 +76,49 @@ class SearchViewModel(
 
             if (requestId == latestRequestId) {
                 _uiState.value = resultState
+            }
+        }
+    }
+
+    fun loadMore() {
+        val currentState = _uiState.value as? SearchUiState.Success ?: return
+        if (!currentState.hasMore || currentState.loadingMore || currentState.selectedBook != null) return
+
+        val nextPage = currentState.page + 1
+        val requestId = latestRequestId
+        _uiState.value = currentState.copy(loadingMore = true, loadMoreError = null)
+
+        viewModelScope.launch {
+            val pageResult = try {
+                searchBooks(currentState.query, page = nextPage)
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                Resource.Error(exception.message ?: "No se pudieron cargar más libros.")
+            }
+
+            val latestState = _uiState.value as? SearchUiState.Success ?: return@launch
+            if (
+                requestId == latestRequestId &&
+                latestState.query == currentState.query &&
+                _query.value.trim() == currentState.query
+            ) {
+                _uiState.value = when (pageResult) {
+                    is Resource.Success -> {
+                        val books = (latestState.books + pageResult.data).distinctBy(Book::id)
+                        latestState.copy(
+                            books = books,
+                            page = nextPage,
+                            hasMore = pageResult.data.size >= PAGE_SIZE && books.size > latestState.books.size,
+                            loadingMore = false,
+                            loadMoreError = null,
+                        )
+                    }
+                    is Resource.Error -> latestState.copy(
+                        loadingMore = false,
+                        loadMoreError = pageResult.message,
+                    )
+                }
             }
         }
     }

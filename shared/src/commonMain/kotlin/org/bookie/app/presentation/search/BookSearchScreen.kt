@@ -120,6 +120,29 @@ fun BookSearchScreen(
                         items(currentState.books, key = Book::id) { book ->
                             BookResult(book = book, onClick = { viewModel.selectBook(book) })
                         }
+                        if (currentState.hasMore) {
+                            item(key = "search-load-more") {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    currentState.loadMoreError?.let { error ->
+                                        Text(error, color = MaterialTheme.colorScheme.error)
+                                    }
+                                    if (currentState.loadingMore) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp),
+                                            strokeWidth = 2.dp,
+                                        )
+                                    } else {
+                                        TextButton(onClick = viewModel::loadMore) {
+                                            Text(if (currentState.loadMoreError == null) "Cargar más libros" else "Reintentar")
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }

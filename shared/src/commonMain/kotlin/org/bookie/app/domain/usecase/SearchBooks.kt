@@ -7,6 +7,6 @@ import org.bookie.app.domain.result.Resource
 class SearchBooks(
     private val bookRepository: BookRepository,
 ) {
-    suspend operator fun invoke(query: String): Resource<List<Book>> =
-        bookRepository.searchBooks(query)
+    suspend operator fun invoke(query: String, page: Int = 1): Resource<List<Book>> =
+        bookRepository.searchBooks(query, page)
 }

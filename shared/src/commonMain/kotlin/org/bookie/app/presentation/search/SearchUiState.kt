@@ -11,6 +11,10 @@ sealed interface SearchUiState {
         val books: List<Book>,
         val query: String = "",
         val selectedBook: Book? = null,
+        val page: Int = 1,
+        val hasMore: Boolean = false,
+        val loadingMore: Boolean = false,
+        val loadMoreError: String? = null,
     ) : SearchUiState
 
     data class Empty(val query: String) : SearchUiState

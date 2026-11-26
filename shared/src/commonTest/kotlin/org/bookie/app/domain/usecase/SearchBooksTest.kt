@@ -27,9 +27,10 @@ class SearchBooksTest {
         val repository = FakeBookRepository(Resource.Success(expectedBooks))
         val searchBooks = SearchBooks(repository)
 
-        val result = searchBooks("ficciones")
+        val result = searchBooks("ficciones", page = 3)
 
         assertEquals("ficciones", repository.receivedQuery)
+        assertEquals(3, repository.receivedPage)
         assertEquals(Resource.Success(expectedBooks), result)
     }
 
@@ -46,9 +47,12 @@ class SearchBooksTest {
     ) : BookRepository {
         var receivedQuery: String? = null
             private set
+        var receivedPage: Int? = null
+            private set
 
-        override suspend fun searchBooks(query: String): Resource<List<Book>> {
+        override suspend fun searchBooks(query: String, page: Int): Resource<List<Book>> {
             receivedQuery = query
+            receivedPage = page
             return result
         }
     }
