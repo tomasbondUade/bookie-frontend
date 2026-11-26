@@ -16,6 +16,11 @@ val bookieApiBaseUrl = appConfig("bookieApiBaseUrl", "BOOKIE_API_BASE_URL")
 val supabaseUrl = appConfig("supabaseUrl", "SUPABASE_URL")
 val supabasePublishableKey = appConfig("supabasePublishableKey", "SUPABASE_PUBLISHABLE_KEY")
 val bookieCommunityId = appConfig("bookieCommunityId", "BOOKIE_COMMUNITY_ID")
+val bookieVersionCode = providers.gradleProperty("bookieVersionCode").orNull?.let { raw ->
+    requireNotNull(raw.toIntOrNull()?.takeIf { it > 0 }) {
+        "bookieVersionCode must be a positive integer."
+    }
+}
 
 require(!supabasePublishableKey.startsWith("sb_secret_", ignoreCase = true)) {
     "SUPABASE_PUBLISHABLE_KEY must not be a Supabase secret key."
@@ -69,8 +74,8 @@ android {
         applicationId = "org.bookie.app"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = bookieVersionCode ?: 1
+        versionName = bookieVersionCode?.let { "1.0.$it" } ?: "1.0"
         buildConfigField("String", "BOOKIE_API_BASE_URL", buildConfigString(bookieApiBaseUrl))
         buildConfigField("String", "SUPABASE_URL", buildConfigString(supabaseUrl))
         buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", buildConfigString(supabasePublishableKey))
